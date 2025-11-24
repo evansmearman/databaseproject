@@ -347,12 +347,53 @@ function HomePage() {
   );
 }
 
+// Exhibit Card Component
+interface ExhibitCardProps {
+  name: string;
+  species: string;
+  temp: string;
+  description?: string;
+}
+
+function ExhibitCard({ name, species, temp, description }: ExhibitCardProps) {
+  return (
+    <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300 hover:scale-105">
+      <h3 className="text-2xl font-semibold mb-2">{name}</h3>
+      <p className="opacity-80">Species: {species}</p>
+      <p className="opacity-80">Temperature: {temp}</p>
+      {description && (
+        <p className="opacity-70 mt-3 text-sm">{description}</p>
+      )}
+    </div>
+  );
+}
+
 function ExhibitsPage() {
   const exhibits = [
-    { name: 'Coral Reef', species: '50+ species', temp: '78°F' },
-    { name: 'Deep Sea Zone', species: '30+ species', temp: '45°F' },
-    { name: 'Tropical Paradise', species: '75+ species', temp: '82°F' },
-    { name: 'Shark Tunnel', species: '15+ species', temp: '72°F' },
+    { 
+      name: 'Coral Reef', 
+      species: '50+ species', 
+      temp: '78°F',
+      description: 'A vibrant ecosystem teeming with colorful fish and living corals.'
+    },
+    { 
+      name: 'Deep Sea Zone', 
+      species: '30+ species', 
+      temp: '45°F',
+      description: 'Explore the mysterious depths with bioluminescent creatures.'
+    },
+    { 
+      name: 'Tropical Paradise', 
+      species: '75+ species', 
+      temp: '82°F',
+      description: 'Experience the warmth and beauty of tropical marine life.'
+    },
+    { 
+      name: 'Shark Tunnel', 
+      species: '15+ species', 
+      temp: '72°F',
+      description: 'Walk through an underwater tunnel surrounded by sharks and rays.'
+    },
   ];
 
   return (
@@ -360,11 +401,13 @@ function ExhibitsPage() {
       <h1 className="text-4xl font-bold mb-8 text-center">Our Exhibits</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {exhibits.map((exhibit, idx) => (
-          <div key={idx} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-            <h3 className="text-2xl font-semibold mb-2">{exhibit.name}</h3>
-            <p className="opacity-80">Species: {exhibit.species}</p>
-            <p className="opacity-80">Temperature: {exhibit.temp}</p>
-          </div>
+          <ExhibitCard
+            key={idx}
+            name={exhibit.name}
+            species={exhibit.species}
+            temp={exhibit.temp}
+            description={exhibit.description}
+          />
         ))}
       </div>
     </div>
