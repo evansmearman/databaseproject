@@ -1,7 +1,7 @@
 "use client";
 
 import { SetStateAction, useState } from 'react';
-import { Menu, X, Home, Fish, Calendar, Ticket, Info, MapPin } from 'lucide-react';
+import { Menu, X, Home, Fish, Calendar, Ticket, Info, MapPin, User } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AquariumPage() {
@@ -15,6 +15,7 @@ export default function AquariumPage() {
     { id: 'tickets', label: 'Tickets', icon: Ticket },
     { id: 'visit', label: 'Plan Your Visit', icon: MapPin },
     { id: 'about', label: 'About Us', icon: Info },
+    { id: 'auth', label: 'Login / Register', icon: User },
   ];
 
   const changePage = (pageId: SetStateAction<string>) => {
@@ -36,6 +37,8 @@ export default function AquariumPage() {
         return <VisitPage />;
       case 'about':
         return <AboutPage />;
+      case 'auth':
+        return <AuthPage />;
       default:
         return <HomePage />;
     }
@@ -502,6 +505,137 @@ function AboutPage() {
           We are committed to conservation efforts, rescue and rehabilitation programs, and 
           educational initiatives that make a difference for our oceans.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    name: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle authentication logic here
+    console.log('Form submitted:', formData);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  return (
+    <div className="px-6 py-12 min-h-screen flex items-center justify-center">
+      <div className="max-w-md w-full">
+        <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
+          <h1 className="text-3xl font-bold mb-6 text-center">
+            {isLogin ? 'Welcome Back' : 'Join Us'}
+          </h1>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium mb-2" htmlFor="name">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="Enter your name"
+                  required={!isLogin}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2" htmlFor="email">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2" htmlFor="password">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium mb-2" htmlFor="confirmPassword">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="Confirm your password"
+                  required={!isLogin}
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm opacity-80 hover:opacity-100 transition-opacity underline"
+            >
+              {isLogin 
+                ? "Don't have an account? Register here" 
+                : "Already have an account? Login here"}
+            </button>
+          </div>
+
+          {isLogin && (
+            <div className="mt-4 text-center">
+              <button className="text-sm opacity-70 hover:opacity-100 transition-opacity">
+                Forgot password?
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
