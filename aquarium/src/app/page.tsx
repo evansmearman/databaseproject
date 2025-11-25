@@ -519,8 +519,7 @@ function AuthPage() {
     name: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     // Handle authentication logic here
     console.log('Form submitted:', formData);
   };
@@ -540,7 +539,7 @@ function AuthPage() {
             {isLogin ? 'Welcome Back' : 'Join Us'}
           </h1>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium mb-2" htmlFor="name">
@@ -554,7 +553,6 @@ function AuthPage() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   placeholder="Enter your name"
-                  required={!isLogin}
                 />
               </div>
             )}
@@ -571,7 +569,6 @@ function AuthPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your email"
-                required
               />
             </div>
 
@@ -587,7 +584,6 @@ function AuthPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your password"
-                required
               />
             </div>
 
@@ -604,18 +600,17 @@ function AuthPage() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   placeholder="Confirm your password"
-                  required={!isLogin}
                 />
               </div>
             )}
 
             <button
-              type="submit"
+              onClick={handleSubmit}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
               {isLogin ? 'Sign In' : 'Create Account'}
             </button>
-          </form>
+          </div>
 
           <div className="mt-6 text-center">
             <button
