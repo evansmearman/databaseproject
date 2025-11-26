@@ -1,7 +1,7 @@
 "use client";
 
 import { SetStateAction, useState } from 'react';
-import { Menu, X, Home, Fish, Calendar, Ticket, Info, MapPin, User } from 'lucide-react';
+import { Menu, X, Home, Fish, Calendar, Ticket, Info, MapPin, User, Users, Droplet, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AquariumPage() {
@@ -10,12 +10,13 @@ export default function AquariumPage() {
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'exhibits', label: 'Exhibits', icon: Fish },
-    { id: 'events', label: 'Events', icon: Calendar },
-    { id: 'tickets', label: 'Tickets', icon: Ticket },
+    { id: 'exhibits', label: 'Exhibits & Tanks', icon: Fish },
+    { id: 'animals', label: 'Our Animals', icon: Heart },
+    { id: 'programs', label: 'Educational Programs', icon: BookOpen },
+    { id: 'membership', label: 'Membership', icon: Users },
     { id: 'visit', label: 'Plan Your Visit', icon: MapPin },
     { id: 'about', label: 'About Us', icon: Info },
-    { id: 'auth', label: 'Login / Register', icon: User },
+    { id: 'auth', label: 'Staff Login', icon: User },
   ];
 
   const changePage = (pageId: SetStateAction<string>) => {
@@ -26,13 +27,15 @@ export default function AquariumPage() {
   const renderPage = () => {
     switch(currentPage) {
       case 'home':
-        return <HomePage />;
+        return <HomePage changePage={changePage} />;
       case 'exhibits':
         return <ExhibitsPage />;
-      case 'events':
-        return <EventsPage />;
-      case 'tickets':
-        return <TicketsPage />;
+      case 'animals':
+        return <AnimalsPage />;
+      case 'programs':
+        return <ProgramsPage />;
+      case 'membership':
+        return <MembershipPage />;
       case 'visit':
         return <VisitPage />;
       case 'about':
@@ -40,13 +43,12 @@ export default function AquariumPage() {
       case 'auth':
         return <AuthPage />;
       default:
-        return <HomePage />;
+        return <HomePage changePage={changePage} />;
     }
   };
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Ocean Background with Bubbles */}
       <div className="ocean">
         <div className="bubble bubble--1"></div>
         <div className="bubble bubble--2"></div>
@@ -59,9 +61,9 @@ export default function AquariumPage() {
         <div className="bubble bubble--10"></div>
         <div className="bubble bubble--11"></div>
         <div className="bubble bubble--12"></div>
+        
       </div>
 
-      {/* Header with Menu Button */}
       <header className="fixed top-0 left-0 right-0 bg-blue-900/80 backdrop-blur-md z-40 px-4 py-3 flex items-center gap-4">
         <button
           onClick={() => setIsDrawerOpen(!isDrawerOpen)}
@@ -70,10 +72,9 @@ export default function AquariumPage() {
         >
           {isDrawerOpen ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
         </button>
-        <h1 className="text-xl font-bold text-white">🐠 Ocean Breeze Aquarium</h1>
+        <h1 className="text-xl font-bold text-white">🐠 Inner Harbor Aquarium</h1>
       </header>
 
-      {/* Drawer Overlay */}
       {isDrawerOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40"
@@ -81,9 +82,8 @@ export default function AquariumPage() {
         />
       )}
 
-      {/* Drawer */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-blue-950/95 backdrop-blur-md z-50 transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-blue-950/95 backdrop-blur-md z-50 transform transition-transform duration-300 overflow-y-auto ${
           isDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -120,7 +120,6 @@ export default function AquariumPage() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="relative z-10 pt-16 text-white">
         {renderPage()}
       </main>
@@ -279,13 +278,16 @@ export default function AquariumPage() {
   );
 }
 
-function HomePage() {
+function HomePage({ changePage }: { changePage: (page: string) => void }) {
   return (
     <>
       <section className="flex flex-col items-center text-center py-20 px-4">
-        <h1 className="text-5xl font-bold mb-4">Welcome to Ocean Breeze</h1>
-        <p className="text-lg max-w-xl opacity-90">
-          Explore vibrant fish, peaceful tanks, and the beauty of the underwater world.
+        <h1 className="text-5xl font-bold mb-4">Welcome to Inner Harbor Aquarium</h1>
+        <p className="text-lg max-w-2xl opacity-90 mb-2">
+          A non-profit aquarium dedicated to exhibition, conservation, and education of aquatic life.
+        </p>
+        <p className="text-base max-w-2xl opacity-80">
+          Promoting public understanding of marine ecosystems while ensuring the health and welfare of aquatic life.
         </p>
 
         <div className="mt-8">
@@ -297,24 +299,62 @@ function HomePage() {
             className="rounded-2xl drop-shadow-2xl"
           />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
+          <button
+            onClick={() => changePage('exhibits')}
+            className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300 hover:scale-105"
+          >
+            <Fish size={40} className="mx-auto mb-3" />
+            <h3 className="text-xl font-semibold mb-2">Explore Exhibits</h3>
+            <p className="text-sm opacity-80">Marine and freshwater ecosystems</p>
+          </button>
+
+          <button
+            onClick={() => changePage('programs')}
+            className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300 hover:scale-105"
+          >
+            <BookOpen size={40} className="mx-auto mb-3" />
+            <h3 className="text-xl font-semibold mb-2">Educational Programs</h3>
+            <p className="text-sm opacity-80">Feeding shows and tours</p>
+          </button>
+
+          <button
+            onClick={() => changePage('membership')}
+            className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300 hover:scale-105"
+          >
+            <Users size={40} className="mx-auto mb-3" />
+            <h3 className="text-xl font-semibold mb-2">Become a Member</h3>
+            <p className="text-sm opacity-80">Support conservation efforts</p>
+          </button>
+        </div>
       </section>
 
       <section className="px-6 pb-24">
-        <h2 className="text-3xl font-semibold mb-6 text-center">Featured Tanks</h2>
-
+        <h2 className="text-3xl font-semibold mb-6 text-center">Featured Exhibits</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
             <Image
               src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=500&fit=crop"
-              alt="Clownfish"
+              alt="Coral Reef"
               width={800}
               height={500}
               className="rounded-xl"
             />
-            <h3 className="text-xl font-semibold mt-3">Clownfish Reef</h3>
-            <p className="text-sm opacity-80">
-              Bright, friendly, and iconic — home to clownfish and soft corals.
-            </p>
+            <h3 className="text-xl font-semibold mt-3">Coral Reef Exhibit</h3>
+            <p className="text-sm opacity-80">Vibrant tropical ecosystem</p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
+            <Image
+              src="https://images.unsplash.com/photo-1564053489984-317bbd824340?w=800&h=500&fit=crop"
+              alt="Shark Tank"
+              width={800}
+              height={500}
+              className="rounded-xl"
+            />
+            <h3 className="text-xl font-semibold mt-3">Shark Tank</h3>
+            <p className="text-sm opacity-80">Majestic shark species</p>
           </div>
 
           <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
@@ -325,24 +365,8 @@ function HomePage() {
               height={500}
               className="rounded-xl"
             />
-            <h3 className="text-xl font-semibold mt-3">Jelly Drift</h3>
-            <p className="text-sm opacity-80">
-              A calming tank with moon jellyfish floating endlessly.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
-            <Image
-              src="https://images.unsplash.com/photo-1535591273668-578e31182c4f?w=800&h=500&fit=crop"
-              alt="Seahorse tank"
-              width={800}
-              height={500}
-              className="rounded-xl"
-            />
-            <h3 className="text-xl font-semibold mt-3">Seahorse Garden</h3>
-            <p className="text-sm opacity-80">
-              Graceful seahorses swimming around a plant-filled habitat.
-            </p>
+            <h3 className="text-xl font-semibold mt-3">Jellyfish Room</h3>
+            <p className="text-sm opacity-80">Graceful jellyfish displays</p>
           </div>
         </div>
       </section>
@@ -350,88 +374,64 @@ function HomePage() {
   );
 }
 
-// Exhibit Card Component
-interface ExhibitCardProps {
-  name: string;
-  species: string;
-  temp: string;
-  description?: string;
-}
-
-function ExhibitCard({ name, species, temp, description }: ExhibitCardProps) {
-  return (
-    <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300 hover:scale-105">
-      <h3 className="text-2xl font-semibold mb-2">{name}</h3>
-      <p className="opacity-80">Species: {species}</p>
-      <p className="opacity-80">Temperature: {temp}</p>
-      {description && (
-        <p className="opacity-70 mt-3 text-sm">{description}</p>
-      )}
-    </div>
-  );
-}
-
 function ExhibitsPage() {
   const exhibits = [
     { 
-      name: 'Coral Reef', 
-      species: '50+ species', 
+      name: 'Coral Reef Exhibit', 
+      location: 'Main Hall - East Wing',
+      tanks: 3,
+      species: '50+ species',
+      type: 'Saltwater',
       temp: '78°F',
-      description: 'A vibrant ecosystem teeming with colorful fish and living corals.'
+      description: 'Tropical ecosystem with clownfish, tangs, angelfish, and living coral.'
     },
     { 
-      name: 'Deep Sea Zone', 
-      species: '30+ species', 
-      temp: '45°F',
-      description: 'Explore the mysterious depths with bioluminescent creatures.'
-    },
-    { 
-      name: 'Tropical Paradise', 
-      species: '75+ species', 
-      temp: '82°F',
-      description: 'Experience the warmth and beauty of tropical marine life.'
-    },
-    { 
-      name: 'Shark Tunnel', 
-      species: '15+ species', 
+      name: 'Shark Tank', 
+      location: 'Main Hall - Center',
+      tanks: 2,
+      species: '15+ species',
+      type: 'Saltwater',
       temp: '72°F',
-      description: 'Walk through an underwater tunnel surrounded by sharks and rays.'
+      description: 'Features Sand Tigers, Nurse Sharks, rays, and underwater viewing tunnel.'
+    },
+    { 
+      name: 'Jellyfish Room', 
+      location: 'North Wing',
+      tanks: 4,
+      species: 'Moon Jellies, Sea Nettles',
+      type: 'Saltwater',
+      temp: '68°F',
+      description: 'Cylindrical tanks with controlled currents for graceful jellyfish.'
+    },
+    { 
+      name: 'Amazon River Exhibit', 
+      location: 'South Wing',
+      tanks: 5,
+      species: '75+ freshwater species',
+      type: 'Freshwater',
+      temp: '78-82°F',
+      description: 'Piranhas, electric eels, freshwater rays, and colorful cichlids.'
     },
   ];
 
   return (
     <div className="px-6 py-12">
-      <h1 className="text-4xl font-bold mb-8 text-center">Our Exhibits</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <h1 className="text-4xl font-bold mb-4 text-center">Exhibits & Tanks</h1>
+      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
+        Each exhibit replicates natural habitats with precise water parameters and tank conditions.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
         {exhibits.map((exhibit, idx) => (
-          <ExhibitCard
-            key={idx}
-            name={exhibit.name}
-            species={exhibit.species}
-            temp={exhibit.temp}
-            description={exhibit.description}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EventsPage() {
-  const events = [
-    { title: 'Feeding Time', time: '11:00 AM & 3:00 PM', date: 'Daily' },
-    { title: 'Dive with Sharks', time: '2:00 PM', date: 'Weekends' },
-    { title: 'Kids Ocean Workshop', time: '10:00 AM', date: 'Saturdays' },
-  ];
-
-  return (
-    <div className="px-6 py-12">
-      <h1 className="text-4xl font-bold mb-8 text-center">Upcoming Events</h1>
-      <div className="space-y-4 max-w-2xl mx-auto">
-        {events.map((event, idx) => (
-          <div key={idx} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-            <h3 className="text-xl font-semibold">{event.title}</h3>
-            <p className="opacity-80">{event.time} - {event.date}</p>
+          <div key={idx} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all">
+            <h3 className="text-2xl font-semibold mb-3">{exhibit.name}</h3>
+            <div className="space-y-1 text-sm">
+              <p className="opacity-90"><strong>Location:</strong> {exhibit.location}</p>
+              <p className="opacity-90"><strong>Tanks:</strong> {exhibit.tanks}</p>
+              <p className="opacity-90"><strong>Type:</strong> {exhibit.type}</p>
+              <p className="opacity-90"><strong>Temperature:</strong> {exhibit.temp}</p>
+              <p className="opacity-90"><strong>Species:</strong> {exhibit.species}</p>
+              <p className="opacity-80 mt-2">{exhibit.description}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -439,26 +439,171 @@ function EventsPage() {
   );
 }
 
-function TicketsPage() {
+function AnimalsPage() {
+  const animals = [
+    { 
+      id: 'anm001',
+      name: 'Thunder', 
+      species: 'Sand Tiger Shark', 
+      group: 'Sharks',
+      sex: 'Male', 
+      dob: '2018-03-15', 
+      exhibit: 'Shark Tank',
+      feedingType: 'Carnivore'
+    },
+    { 
+      id: 'anm002',
+      name: 'Luna', 
+      species: 'Nurse Shark', 
+      group: 'Sharks',
+      sex: 'Female', 
+      dob: '2019-07-22', 
+      exhibit: 'Shark Tank',
+      feedingType: 'Carnivore'
+    },
+    { 
+      id: 'anm011',
+      name: 'Sheldon', 
+      species: 'Green Sea Turtle', 
+      group: 'Turtles',
+      sex: 'Male', 
+      dob: '2015-08-12', 
+      exhibit: 'Coral Reef',
+      feedingType: 'Herbivore'
+    },
+    { 
+      id: 'anm021',
+      name: 'Nemo Jr.', 
+      species: 'Clownfish', 
+      group: 'Tropical Fish',
+      sex: 'Male', 
+      dob: '2023-09-01', 
+      exhibit: 'Coral Reef',
+      feedingType: 'Omnivore'
+    },
+  ];
+
   return (
     <div className="px-6 py-12">
-      <h1 className="text-4xl font-bold mb-8 text-center">Tickets & Pricing</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-        <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center">
-          <h3 className="text-2xl font-semibold mb-2">Adult</h3>
-          <p className="text-4xl font-bold mb-2">$25</p>
-          <p className="opacity-80">Ages 13+</p>
-        </div>
-        <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center">
-          <h3 className="text-2xl font-semibold mb-2">Child</h3>
-          <p className="text-4xl font-bold mb-2">$15</p>
-          <p className="opacity-80">Ages 3-12</p>
-        </div>
-        <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center">
-          <h3 className="text-2xl font-semibold mb-2">Senior</h3>
-          <p className="text-4xl font-bold mb-2">$20</p>
-          <p className="opacity-80">Ages 65+</p>
-        </div>
+      <h1 className="text-4xl font-bold mb-4 text-center">Our Animals</h1>
+      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
+        Meet our aquatic residents receiving specialized care from dedicated aquarists.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        {animals.map((animal) => (
+          <div key={animal.id} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
+            <h3 className="text-2xl font-semibold mb-3">{animal.name}</h3>
+            <div className="space-y-1 text-sm">
+              <p className="opacity-90"><strong>Animal ID:</strong> {animal.id}</p>
+              <p className="opacity-90"><strong>Species:</strong> {animal.species}</p>
+              <p className="opacity-90"><strong>Group:</strong> {animal.group}</p>
+              <p className="opacity-90"><strong>Sex:</strong> {animal.sex}</p>
+              <p className="opacity-90"><strong>Date of Birth:</strong> {animal.dob}</p>
+              <p className="opacity-90"><strong>Exhibit:</strong> {animal.exhibit}</p>
+              <p className="opacity-90"><strong>Feeding Type:</strong> {animal.feedingType}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProgramsPage() {
+  const programs = [
+    { 
+      id: 'PRG001',
+      name: 'Shark Feeding Show', 
+      startTime: '11:00 AM',
+      endTime: '11:30 AM',
+      schedule: 'Daily (11:00 AM & 3:00 PM)',
+      supervisor: 'Dr. Sarah Mitchell',
+      location: 'Shark Tank'
+    },
+    { 
+      id: 'PRG002',
+      name: 'Penguin Talk', 
+      startTime: '10:30 AM',
+      endTime: '11:00 AM',
+      schedule: 'Daily (10:30 AM & 2:30 PM)',
+      supervisor: 'James Rodriguez',
+      location: 'Penguin Cove'
+    },
+    { 
+      id: 'PRG003',
+      name: 'Behind the Scenes Tour', 
+      startTime: '1:00 PM',
+      endTime: '2:30 PM',
+      schedule: 'Weekends Only',
+      supervisor: 'Dr. Emily Chen',
+      location: 'Research Lab'
+    },
+  ];
+
+  return (
+    <div className="px-6 py-12">
+      <h1 className="text-4xl font-bold mb-4 text-center">Educational Programs</h1>
+      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
+        Programs supervised by experienced aquarists and marine biologists.
+      </p>
+      <div className="space-y-4 max-w-4xl mx-auto">
+        {programs.map((program) => (
+          <div key={program.id} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
+            <h3 className="text-xl font-semibold mb-2">{program.name}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <p className="opacity-90"><strong>Program ID:</strong> {program.id}</p>
+              <p className="opacity-90"><strong>Time:</strong> {program.startTime} - {program.endTime}</p>
+              <p className="opacity-90"><strong>Schedule:</strong> {program.schedule}</p>
+              <p className="opacity-90"><strong>Location:</strong> {program.location}</p>
+              <p className="opacity-90 md:col-span-2"><strong>Supervisor:</strong> {program.supervisor}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MembershipPage() {
+  const memberships = [
+    {
+      type: 'Individual',
+      price: '$65/year',
+      benefits: ['Unlimited admission for 1', '10% gift shop discount', 'Member events', 'Free parking']
+    },
+    {
+      type: 'Family',
+      price: '$120/year',
+      benefits: ['Admission for up to 4', '15% discounts', 'Priority registration', 'Member preview days']
+    },
+    {
+      type: 'Corporate',
+      price: '$500/year',
+      benefits: ['Admission for up to 10', '20% discounts', 'Behind-scenes tour', 'Donor recognition']
+    }
+  ];
+
+  return (
+    <div className="px-6 py-12">
+      <h1 className="text-4xl font-bold mb-4 text-center">Membership Plans</h1>
+      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
+        Support conservation while enjoying exclusive benefits.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {memberships.map((m, idx) => (
+          <div key={idx} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center">
+            <h3 className="text-2xl font-semibold mb-2">{m.type}</h3>
+            <p className="text-4xl font-bold mb-4">{m.price}</p>
+            <div className="text-left space-y-2">
+              {m.benefits.map((b, i) => (
+                <p key={i} className="text-sm opacity-90">✓ {b}</p>
+              ))}
+            </div>
+            <button className="w-full mt-6 bg-blue-500 hover:bg-blue-600 py-3 rounded-lg font-semibold transition-all">
+              Register
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -468,20 +613,22 @@ function VisitPage() {
   return (
     <div className="px-6 py-12">
       <h1 className="text-4xl font-bold mb-8 text-center">Plan Your Visit</h1>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-          <h3 className="text-xl font-semibold mb-2">Hours</h3>
-          <p className="opacity-80">Monday - Friday: 9:00 AM - 6:00 PM</p>
-          <p className="opacity-80">Saturday - Sunday: 8:00 AM - 8:00 PM</p>
+          <h3 className="text-xl font-semibold mb-3">Hours</h3>
+          <p className="opacity-90">Monday - Friday: 9:00 AM - 6:00 PM</p>
+          <p className="opacity-90">Saturday - Sunday: 8:00 AM - 8:00 PM</p>
         </div>
         <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-          <h3 className="text-xl font-semibold mb-2">Location</h3>
-          <p className="opacity-80">123 Ocean Drive</p>
-          <p className="opacity-80">Seaside, CA 90210</p>
+          <h3 className="text-xl font-semibold mb-3">Location</h3>
+          <p className="opacity-90">123 Harbor Drive</p>
+          <p className="opacity-90">Baltimore, MD 21202</p>
         </div>
         <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-          <h3 className="text-xl font-semibold mb-2">Parking</h3>
-          <p className="opacity-80">Free parking available on-site</p>
+          <h3 className="text-xl font-semibold mb-3">Admission</h3>
+          <p className="opacity-90">Adults (13+): $25</p>
+          <p className="opacity-90">Children (3-12): $15</p>
+          <p className="opacity-90">Seniors (65+): $20</p>
         </div>
       </div>
     </div>
@@ -494,16 +641,13 @@ function AboutPage() {
       <h1 className="text-4xl font-bold mb-8 text-center">About Us</h1>
       <div className="max-w-3xl mx-auto bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
         <p className="text-lg mb-4 opacity-90">
-          Ocean Breeze Aquarium has been dedicated to marine conservation and education since 1995. 
-          Our mission is to inspire wonder and respect for the ocean&apos;s incredible biodiversity.
+          The Inner Harbor Aquarium is a non-profit organization dedicated to exhibition, conservation, and education of aquatic life.
         </p>
         <p className="text-lg mb-4 opacity-90">
-          With over 10,000 animals representing 500+ species, we provide an immersive experience 
-          that connects visitors with the beauty and fragility of marine ecosystems.
+          Our mission is to promote public understanding of marine ecosystems while ensuring the health and welfare of all aquatic organisms.
         </p>
         <p className="text-lg opacity-90">
-          We are committed to conservation efforts, rescue and rehabilitation programs, and 
-          educational initiatives that make a difference for our oceans.
+          We support environmental awareness programs and sustainability initiatives to foster ocean conservation for future generations.
         </p>
       </div>
     </div>
@@ -513,15 +657,13 @@ function AboutPage() {
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
+    staffId: '',
     email: '',
-    password: '',
-    confirmPassword: '',
-    name: ''
+    password: ''
   });
 
   const handleSubmit = () => {
-    // Handle authentication logic here
-    console.log('Form submitted:', formData);
+    console.log('Staff login:', formData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -535,35 +677,25 @@ function AuthPage() {
     <div className="px-6 py-12 min-h-screen flex items-center justify-center">
       <div className="max-w-md w-full">
         <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
-          <h1 className="text-3xl font-bold mb-6 text-center">
-            {isLogin ? 'Welcome Back' : 'Join Us'}
-          </h1>
+          <h1 className="text-3xl font-bold mb-6 text-center">Staff Login</h1>
           
           <div className="space-y-4">
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium mb-2" htmlFor="name">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  placeholder="Enter your name"
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium mb-2">Staff ID</label>
+              <input
+                type="text"
+                name="staffId"
+                value={formData.staffId}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your staff ID"
+              />
+            </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2" htmlFor="email">
-                Email Address
-              </label>
+              <label className="block text-sm font-medium mb-2">Email</label>
               <input
                 type="email"
-                id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
@@ -573,12 +705,9 @@ function AuthPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2" htmlFor="password">
-                Password
-              </label>
+              <label className="block text-sm font-medium mb-2">Password</label>
               <input
                 type="password"
-                id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
@@ -587,49 +716,17 @@ function AuthPage() {
               />
             </div>
 
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium mb-2" htmlFor="confirmPassword">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  placeholder="Confirm your password"
-                />
-              </div>
-            )}
-
             <button
               onClick={handleSubmit}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              Sign In
             </button>
           </div>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm opacity-80 hover:opacity-100 transition-opacity underline"
-            >
-              {isLogin 
-                ? "Don't have an account? Register here" 
-                : "Already have an account? Login here"}
-            </button>
-          </div>
-
-          {isLogin && (
-            <div className="mt-4 text-center">
-              <button className="text-sm opacity-70 hover:opacity-100 transition-opacity">
-                Forgot password?
-              </button>
-            </div>
-          )}
+          <p className="mt-6 text-center text-sm opacity-80">
+            Staff access for Aquarists and Supervisors only
+          </p>
         </div>
       </div>
     </div>
