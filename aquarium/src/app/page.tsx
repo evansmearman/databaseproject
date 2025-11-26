@@ -61,7 +61,6 @@ export default function AquariumPage() {
         <div className="bubble bubble--10"></div>
         <div className="bubble bubble--11"></div>
         <div className="bubble bubble--12"></div>
-        
       </div>
 
       <header className="fixed top-0 left-0 right-0 bg-blue-900/80 backdrop-blur-md z-40 px-4 py-3 flex items-center gap-4">
