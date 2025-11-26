@@ -1,12 +1,13 @@
 "use client";
 
 import { SetStateAction, useState } from 'react';
-import { Menu, X, Home, Fish, Calendar, Ticket, Info, MapPin, User, Users, Droplet, BookOpen, Heart } from 'lucide-react';
+import { Menu, X, Home, Fish, Info, MapPin, User, Users, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AquariumPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState('home');
+  const [staffMode, setStaffMode] = useState(false);
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -17,6 +18,7 @@ export default function AquariumPage() {
     { id: 'visit', label: 'Plan Your Visit', icon: MapPin },
     { id: 'about', label: 'About Us', icon: Info },
     { id: 'auth', label: 'Login', icon: User },
+    { id: 'staff', label: 'Staff Dashboard', icon: User },
   ];
 
   const changePage = (pageId: SetStateAction<string>) => {
@@ -42,6 +44,8 @@ export default function AquariumPage() {
         return <AboutPage />;
       case 'auth':
         return <AuthPage />;
+      case 'staff':
+        return <StaffDashboard staffMode={staffMode} />;
       default:
         return <HomePage changePage={changePage} />;
     }
@@ -63,16 +67,28 @@ export default function AquariumPage() {
         <div className="bubble bubble--12"></div>
       </div>
 
-      <header className="fixed top-0 left-0 right-0 bg-blue-900/80 backdrop-blur-md z-40 px-4 py-3 flex items-center gap-4">
-        <button
-          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          aria-label="Toggle menu"
-        >
-          {isDrawerOpen ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
-        </button>
-        <h1 className="text-xl font-bold text-white">🐠 Inner Harbor Aquarium</h1>
-      </header>
+      <header className="fixed top-0 left-0 right-0 bg-blue-900/80 backdrop-blur-md z-40 px-4 py-3 flex items-center gap-4 justify-between">
+  <div className="flex items-center gap-4">
+    <button
+      onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+    >
+      {isDrawerOpen ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
+    </button>
+    <h1 className="text-xl font-bold text-white">🐠 Inner Harbor Aquarium</h1>
+  </div>
+
+  {/* STAFF MODE TOGGLE */}
+  <button
+    onClick={() => setStaffMode(!staffMode)}
+    className={`px-4 py-2 rounded-lg font-semibold transition ${
+      staffMode ? "bg-green-600" : "bg-white/20"
+    }`}
+  >
+    {staffMode ? "Staff Mode: ON" : "Staff Mode: OFF"}
+  </button>
+</header>
+
 
       {isDrawerOpen && (
         <div
@@ -883,6 +899,175 @@ function AuthPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+interface Record {
+  [key: string]: string | number;
+}
+
+function StaffDashboard({ staffMode }: { staffMode: boolean }) {
+  const [animals, setAnimals] = useState<Record[]>([]);
+  const [staff, setStaff] = useState<Record[]>([]);
+  const [exhibits, setExhibits] = useState<Record[]>([]);
+  const [tanks, setTanks] = useState<Record[]>([]);
+  const [programs, setPrograms] = useState<Record[]>([]);
+  const [visitors, setVisitors] = useState<Record[]>([]);
+  const [memberships, setMemberships] = useState<Record[]>([]);
+  const [feedingRecords, setFeedingRecords] = useState<Record[]>([]);
+  const [healthRecords, setHealthRecords] = useState<Record[]>([]);
+
+  if (!staffMode) {
+    return (
+      <div className="px-6 py-12 text-center">
+        <h1 className="text-4xl font-bold mb-4">Staff Dashboard</h1>
+        <p className="text-lg opacity-80">You must enable Staff Mode to access this page.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 py-12">
+      <h1 className="text-4xl font-bold mb-6 text-center">Staff Dashboard (UI Only)</h1>
+
+      <p className="text-center opacity-80 mb-10">
+        These tools allow staff to add, update, and view aquarium records.
+        <br />All data is temporary until database implementation.
+      </p>
+
+      {/* SECTION GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        {/* ANIMAL FORM */}
+        <StaffInputCard
+          title="Add Animal"
+          onSubmit={(data) => setAnimals([...animals, data])}
+          fields={["id", "name", "species", "exhibit", "feedingType"]}
+        />
+
+        {/* STAFF FORM */}
+        <StaffInputCard
+          title="Add Staff Member"
+          onSubmit={(data) => setStaff([...staff, data])}
+          fields={["id", "name", "role", "phone"]}
+        />
+
+        {/* EXHIBIT FORM */}
+        <StaffInputCard
+          title="Add Exhibit"
+          onSubmit={(data) => setExhibits([...exhibits, data])}
+          fields={["id", "name", "location"]}
+        />
+
+        {/* TANK FORM */}
+        <StaffInputCard
+          title="Add Tank"
+          onSubmit={(data) => setTanks([...tanks, data])}
+          fields={["id", "name", "exhibit", "temperature"]}
+        />
+
+        {/* PROGRAM FORM */}
+        <StaffInputCard
+          title="Add Program"
+          onSubmit={(data) => setPrograms([...programs, data])}
+          fields={["id", "name", "schedule"]}
+        />
+
+        {/* VISITOR FORM */}
+        <StaffInputCard
+          title="Add Visitor"
+          onSubmit={(data) => setVisitors([...visitors, data])}
+          fields={["id", "name", "guardian", "emergencyPhone"]}
+        />
+
+        {/* MEMBERSHIP FORM */}
+        <StaffInputCard
+          title="Add Membership"
+          onSubmit={(data) => setMemberships([...memberships, data])}
+          fields={["id", "memberName", "tier"]}
+        />
+
+        {/* FEEDING RECORD */}
+        <StaffInputCard
+          title="Add Feeding Record"
+          onSubmit={(data) => setFeedingRecords([...feedingRecords, data])}
+          fields={["animalId", "food", "time"]}
+        />
+
+        {/* HEALTH RECORD */}
+        <StaffInputCard
+          title="Add Health Record"
+          onSubmit={(data) => setHealthRecords([...healthRecords, data])}
+          fields={["animalId", "condition", "notes"]}
+        />
+
+      </div>
+
+      {/* DISPLAY LISTS */}
+      <div className="mt-16">
+        <h2 className="text-3xl font-bold mb-4">Generated Lists</h2>
+
+        <ListDisplay label="Animals" data={animals} />
+        <ListDisplay label="Staff" data={staff} />
+        <ListDisplay label="Exhibits" data={exhibits} />
+        <ListDisplay label="Tanks" data={tanks} />
+        <ListDisplay label="Programs" data={programs} />
+        <ListDisplay label="Visitors" data={visitors} />
+        <ListDisplay label="Memberships" data={memberships} />
+        <ListDisplay label="Feeding Records" data={feedingRecords} />
+        <ListDisplay label="Health Records" data={healthRecords} />
+      </div>
+    </div>
+  );
+}
+type StaffInputCardProps = {
+  title: string;
+  fields: string[];
+  onSubmit: (data: Record) => void;
+};
+
+function StaffInputCard({ title, fields, onSubmit }: StaffInputCardProps) {
+  const [form, setForm] = useState<Record>({});
+
+  const handleChange = (field: string, value: string) => {
+    setForm({ ...form, [field]: value });
+  };
+
+  return (
+    <div className="bg-white/10 p-6 rounded-xl backdrop-blur-md">
+      <h3 className="text-2xl font-bold mb-4">{title}</h3>
+
+      <div className="space-y-3">
+        {fields.map((f) => (
+          <input
+            key={f}
+            placeholder={f}
+            className="w-full p-2 rounded bg-white/20"
+            onChange={(e) => handleChange(f, e.target.value)}
+          />
+        ))}
+      </div>
+
+      <button
+        onClick={() => onSubmit(form)}
+        className="mt-4 bg-blue-500 hover:bg-blue-600 w-full py-2 rounded-lg"
+      >
+        Save
+      </button>
+    </div>
+  );
+}
+function ListDisplay({ label, data }: { label: string; data: Record[] }) {
+  return (
+    <div className="mb-8 bg-white/10 p-6 rounded-xl backdrop-blur">
+      <h3 className="text-2xl font-bold mb-4">{label}</h3>
+      {data.length === 0 ? (
+        <p className="opacity-70">No entries.</p>
+      ) : (
+        <pre className="bg-black/20 p-4 rounded text-sm whitespace-pre-wrap">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
