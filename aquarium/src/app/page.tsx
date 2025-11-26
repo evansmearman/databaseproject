@@ -16,7 +16,7 @@ export default function AquariumPage() {
     { id: 'membership', label: 'Membership', icon: Users },
     { id: 'visit', label: 'Plan Your Visit', icon: MapPin },
     { id: 'about', label: 'About Us', icon: Info },
-    { id: 'auth', label: 'Staff Login', icon: User },
+    { id: 'auth', label: 'Login', icon: User },
   ];
 
   const changePage = (pageId: SetStateAction<string>) => {
@@ -654,51 +654,68 @@ function AboutPage() {
 }
 
 function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<"member" | "staff" | "signup">("member");
+
   const [formData, setFormData] = useState({
-    staffId: '',
-    email: '',
-    password: ''
+    memberEmail: "",
+    memberPassword: "",
+    staffId: "",
+    staffEmail: "",
+    staffPassword: "",
+    newMemberName: "",
+    newMemberEmail: "",
+    newMemberPassword: "",
   });
 
-  const handleSubmit = () => {
-    console.log('Staff login:', formData);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleSubmit = () => {
+    if (mode === "member") {
+      console.log("Member login:", {
+        email: formData.memberEmail,
+        password: formData.memberPassword,
+      });
+    } else if (mode === "staff") {
+      console.log("Staff login:", {
+        staffId: formData.staffId,
+        email: formData.staffEmail,
+        password: formData.staffPassword,
+      });
+    } else {
+      console.log("New member account:", {
+        name: formData.newMemberName,
+        email: formData.newMemberEmail,
+        password: formData.newMemberPassword,
+      });
+    }
   };
 
   return (
     <div className="px-6 py-12 min-h-screen flex items-center justify-center">
-      <div className="max-w-md w-full">
-        <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
-          <h1 className="text-3xl font-bold mb-6 text-center">Staff Login</h1>
-          
+      <div className="max-w-md w-full bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
+
+        {/* ---------------- HEADER ---------------- */}
+        <h1 className="text-3xl font-bold mb-6 text-center">
+          {mode === "member" && "Member Login"}
+          {mode === "staff" && "Staff Login"}
+          {mode === "signup" && "Become a Member"}
+        </h1>
+
+        {/* ---------------- MEMBER LOGIN ---------------- */}
+        {mode === "member" && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Staff ID</label>
-              <input
-                type="text"
-                name="staffId"
-                value={formData.staffId}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Enter your staff ID"
-              />
-            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Email</label>
               <input
                 type="email"
-                name="email"
-                value={formData.email}
+                name="memberEmail"
+                value={formData.memberEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your email"
               />
             </div>
@@ -707,26 +724,164 @@ function AuthPage() {
               <label className="block text-sm font-medium mb-2">Password</label>
               <input
                 type="password"
-                name="password"
-                value={formData.password}
+                name="memberPassword"
+                value={formData.memberPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your password"
               />
             </div>
 
             <button
               onClick={handleSubmit}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg 
+              transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
               Sign In
             </button>
-          </div>
 
-          <p className="mt-6 text-center text-sm opacity-80">
-            Staff access for Aquarists and Supervisors only
-          </p>
-        </div>
+            <p className="mt-4 text-center">
+              <button
+                onClick={() => setMode("signup")}
+                className="text-blue-300 hover:underline"
+              >
+                Become a Member
+              </button>
+              {" "} | {" "}
+              <button
+                onClick={() => setMode("staff")}
+                className="text-blue-300 hover:underline"
+              >
+                Staff Login
+              </button>
+            </p>
+          </div>
+        )}
+
+        {/* ---------------- STAFF LOGIN ---------------- */}
+        {mode === "staff" && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Staff ID</label>
+              <input
+                type="text"
+                name="staffId"
+                value={formData.staffId}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your staff ID"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <input
+                type="email"
+                name="staffEmail"
+                value={formData.staffEmail}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your staff email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Password</label>
+              <input
+                type="password"
+                name="staffPassword"
+                value={formData.staffPassword}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your password"
+              />
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg 
+              transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Staff Sign In
+            </button>
+
+            <p className="mt-4 text-center">
+              <button
+                onClick={() => setMode("member")}
+                className="text-blue-300 hover:underline"
+              >
+                Member Login
+              </button>
+            </p>
+          </div>
+        )}
+
+        {/* ---------------- MEMBER SIGN UP ---------------- */}
+        {mode === "signup" && (
+          <div className="space-y-4">
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Full Name</label>
+              <input
+                type="text"
+                name="newMemberName"
+                value={formData.newMemberName}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <input
+                type="email"
+                name="newMemberEmail"
+                value={formData.newMemberEmail}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Password</label>
+              <input
+                type="password"
+                name="newMemberPassword"
+                value={formData.newMemberPassword}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
+                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Create a password"
+              />
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg 
+              transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Create Account
+            </button>
+
+            <p className="mt-4 text-center text-sm">
+              Already a member?{" "}
+              <button
+                onClick={() => setMode("member")}
+                className="text-blue-300 hover:underline"
+              >
+                Log In
+              </button>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
