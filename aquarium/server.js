@@ -10,7 +10,7 @@ app.use(express.json());
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "Laundry78@78",
+    password: "197355",
     database: "aquarium_db"
 });
 
@@ -21,6 +21,29 @@ db.connect(err => {
         throw err;
     }
     console.log("MySQL connected to aquarium_db");
+});
+
+
+
+// ==================== FEATURED EXHIBITS (for Home Page) ====================
+app.get("/featured-exhibits", (req, res) => {
+    const query = `
+        SELECT
+            E.exhibit_id,
+            E.exhibit_name,
+            E.location,
+            CONCAT(S.first_name, ' ', S.last_name) AS lead_aquarist_name
+        FROM Exhibit E
+        JOIN Staff S ON E.lead_aquarist_id = S.staff_id
+        LIMIT 3  -- Limit to 3 exhibits for the featured section
+    `;
+    db.query(query, (err, result) => {
+        if (err) {
+            console.error("Error fetching featured exhibits:", err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(result);
+    });
 });
 
 // ==================== VISITOR ROUTES ====================
@@ -359,6 +382,7 @@ app.get("/", (req, res) => {
             members: "/members",
             staff: "/staff",
             exhibits: "/exhibits",
+            featured_exhibits: "/featured-exhibits",
             animals: "/animals",
             tanks: "/tanks",
             feeding_records: "/feeding-records",
