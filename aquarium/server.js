@@ -360,15 +360,28 @@ app.get("/staff/type/:type", (req, res) => {
 });
 
 // Get exhibits with animal count
-app.get("/exhibits-stats", (req, res) => {
+// ==================== EXHIBIT DETAILS (for Exhibits Page) ====================
+app.get("/exhibits-details", (req, res) => {
     const query = `
-        SELECT e.*, COUNT(a.animal_id) as animal_count
-        FROM Exhibit e
-        LEFT JOIN Animal a ON e.exhibit_id = a.exhibit_id
-        GROUP BY e.exhibit_id
+        SELECT
+            E.exhibit_id,
+            E.exhibit_name,
+            E.location,
+            CONCAT(S.first_name, ' ', S.last_name) AS lead_aquarist_name,
+            COUNT(DISTINCT T.tank_id) AS total_tanks,
+            COUNT(DISTINCT A.animal_id) AS total_animals
+        FROM Exhibit E
+        LEFT JOIN Staff S ON E.lead_aquarist_id = S.staff_id
+        LEFT JOIN Tank T ON E.exhibit_id = T.exhibit_id
+        LEFT JOIN Animal A ON E.exhibit_id = A.exhibit_id
+        GROUP BY E.exhibit_id, E.exhibit_name, E.location, S.first_name, S.last_name
+        ORDER BY E.exhibit_name;
     `;
     db.query(query, (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error("Error fetching exhibit details:", err);
+            return res.status(500).json({ error: err.message });
+        }
         res.json(result);
     });
 });
@@ -383,6 +396,7 @@ app.get("/", (req, res) => {
             staff: "/staff",
             exhibits: "/exhibits",
             featured_exhibits: "/featured-exhibits",
+            exhibits_details: "/exhibits-details",
             animals: "/animals",
             tanks: "/tanks",
             feeding_records: "/feeding-records",

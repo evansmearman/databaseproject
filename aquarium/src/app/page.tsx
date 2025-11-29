@@ -1,8 +1,36 @@
 "use client";
 
-import { SetStateAction, useState } from 'react';
+// ADD useEffect to the list of imports
+import { SetStateAction, useState, useEffect } from 'react';
 import { Menu, X, Home, Fish, Info, MapPin, User, Users, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
+
+// Define the expected structure for Exhibits Page data from the database
+interface ExhibitDetail {
+  exhibit_id: string;
+  exhibit_name: string;
+  location: string;
+  lead_aquarist_name: string; 
+  total_tanks: number;        // Calculated from DB
+  total_animals: number;      // Calculated from DB
+}
+
+// Function to handle the API call for the Exhibits Page
+async function fetchExhibitDetails(): Promise<ExhibitDetail[]> {
+  const API_URL = "http://localhost:5000/exhibits-details"; 
+  
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data: ExhibitDetail[] = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching exhibit details:", error);
+    return []; // Return an empty array on failure
+  }
+}
 
 export default function AquariumPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -293,16 +321,66 @@ export default function AquariumPage() {
   );
 }
 
+// Define the expected structure for our Exhibit data from the database
+interface FeaturedExhibit {
+  exhibit_id: string;
+  exhibit_name: string;
+  location: string;
+  lead_aquarist_name: string; // Fetched from the JOIN query
+  image_url: string;          // Will be determined client-side as it's not in the DB
+}
+
+// Function to handle the API call
+async function fetchFeaturedExhibits(): Promise<FeaturedExhibit[]> {
+  // Your Express server is running on port 5000
+  const API_URL = "http://localhost:5000/featured-exhibits"; 
+  
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data: FeaturedExhibit[] = await res.json();
+    
+    // Client-side logic to map API data to a display structure (including a placeholder image)
+    return data.map(item => ({
+        ...item,
+        // Simple mapping to use one of the placeholder images based on the exhibit name
+        image_url: 
+            item.exhibit_name.includes("Coral") ? "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=500&fit=crop" : 
+            item.exhibit_name.includes("Shark") ? "https://images.unsplash.com/photo-1564053489984-317bbd824340?w=800&h=500&fit=crop" :
+            item.exhibit_name.includes("Penguin") ? "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=500&fit=crop&sat=-100&hue=180" :
+            "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?w=600&h=600&fit=crop"
+    }));
+    
+  } catch (error) {
+    console.error("Error fetching featured exhibits:", error);
+    return []; // Return an empty array on failure
+  }
+}
+
 function HomePage({ changePage }: { changePage: (page: string) => void }) {
+  const [featuredExhibits, setFeaturedExhibits] = useState<FeaturedExhibit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 2. Fetch data when the component mounts
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const data = await fetchFeaturedExhibits();
+      setFeaturedExhibits(data);
+      setIsLoading(false);
+    }
+    loadData();
+  }, []); // Empty array ensures this runs only once
+  
   return (
     <>
       <section className="flex flex-col items-center text-center py-20 px-4">
+        {/* ... (Existing static content - Welcome, Buttons) ... */}
         <h1 className="text-5xl font-bold mb-4">Welcome to Inner Harbor Aquarium</h1>
         <p className="text-lg max-w-2xl opacity-90 mb-2">
           A non-profit aquarium dedicated to exhibition, conservation, and education of aquatic life.
-        </p>
-        <p className="text-base max-w-2xl opacity-80">
-          Promoting public understanding of marine ecosystems while ensuring the health and welfare of aquatic life.
         </p>
 
         <div className="mt-8">
@@ -345,111 +423,104 @@ function HomePage({ changePage }: { changePage: (page: string) => void }) {
         </div>
       </section>
 
+      {/* 3. Dynamic Rendering of Featured Exhibits */}
       <section className="px-6 pb-24">
         <h2 className="text-3xl font-semibold mb-6 text-center">Featured Exhibits</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
-            <Image
-              src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=500&fit=crop"
-              alt="Coral Reef"
-              width={800}
-              height={500}
-              className="rounded-xl"
-            />
-            <h3 className="text-xl font-semibold mt-3">Coral Reef Exhibit</h3>
-            <p className="text-sm opacity-80">Vibrant tropical ecosystem</p>
+        
+        {isLoading ? (
+          <p className="text-center opacity-80">Loading featured exhibits...</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {featuredExhibits.map((exhibit) => (
+              <div 
+                key={exhibit.exhibit_id} 
+                className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300"
+              >
+                <Image
+                  src={exhibit.image_url}
+                  alt={exhibit.exhibit_name}
+                  width={800}
+                  height={500}
+                  className="rounded-xl object-cover h-48 w-full"
+                />
+                <h3 className="text-xl font-semibold mt-3">{exhibit.exhibit_name}</h3>
+                <p className="text-sm opacity-80">Location: {exhibit.location}</p>
+                <p className="text-xs opacity-60">Lead Aquarist: {exhibit.lead_aquarist_name}</p>
+              </div>
+            ))}
+            {featuredExhibits.length === 0 && <p className="text-center opacity-80 col-span-3">No featured exhibits found or API connection failed.</p>}
           </div>
-
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
-            <Image
-              src="https://images.unsplash.com/photo-1564053489984-317bbd824340?w=800&h=500&fit=crop"
-              alt="Shark Tank"
-              width={800}
-              height={500}
-              className="rounded-xl"
-            />
-            <h3 className="text-xl font-semibold mt-3">Shark Tank</h3>
-            <p className="text-sm opacity-80">Majestic shark species</p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-lg hover:bg-white/20 transition-all duration-300">
-            <Image
-              src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=500&fit=crop&sat=-100&hue=180"
-              alt="Jellyfish"
-              width={800}
-              height={500}
-              className="rounded-xl"
-            />
-            <h3 className="text-xl font-semibold mt-3">Jellyfish Room</h3>
-            <p className="text-sm opacity-80">Graceful jellyfish displays</p>
-          </div>
-        </div>
+        )}
       </section>
     </>
   );
 }
 
+// ADDED IMPORTS: Ensure 'useEffect' is imported from 'react' at the top of page.tsx.
+// import { SetStateAction, useState, useEffect } from 'react';
+
 function ExhibitsPage() {
-  const exhibits = [
-    { 
-      name: 'Coral Reef Exhibit', 
-      location: 'Main Hall - East Wing',
-      tanks: 3,
-      species: '50+ species',
-      type: 'Saltwater',
-      temp: '78°F',
-      description: 'Tropical ecosystem with clownfish, tangs, angelfish, and living coral.'
-    },
-    { 
-      name: 'Shark Tank', 
-      location: 'Main Hall - Center',
-      tanks: 2,
-      species: '15+ species',
-      type: 'Saltwater',
-      temp: '72°F',
-      description: 'Features Sand Tigers, Nurse Sharks, rays, and underwater viewing tunnel.'
-    },
-    { 
-      name: 'Jellyfish Room', 
-      location: 'North Wing',
-      tanks: 4,
-      species: 'Moon Jellies, Sea Nettles',
-      type: 'Saltwater',
-      temp: '68°F',
-      description: 'Cylindrical tanks with controlled currents for graceful jellyfish.'
-    },
-    { 
-      name: 'Amazon River Exhibit', 
-      location: 'South Wing',
-      tanks: 5,
-      species: '75+ freshwater species',
-      type: 'Freshwater',
-      temp: '78-82°F',
-      description: 'Piranhas, electric eels, freshwater rays, and colorful cichlids.'
-    },
-  ];
+  // 1. Initialize state for data and loading status
+  const [exhibits, setExhibits] = useState<ExhibitDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 2. Fetch data when the component mounts
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const data = await fetchExhibitDetails();
+      setExhibits(data);
+      setIsLoading(false);
+    }
+    loadData();
+  }, []); // Empty array ensures this runs only once on mount
 
   return (
-    <div className="px-6 py-12">
-      <h1 className="text-4xl font-bold mb-4 text-center">Exhibits & Tanks</h1>
-      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
-        Each exhibit replicates natural habitats with precise water parameters and tank conditions.
+    <div className="p-6">
+      <h2 className="text-4xl font-bold mb-8">Exhibits & Tanks</h2>
+      <p className="text-lg opacity-80 mb-6">
+        Explore our diverse ecosystems and the tanks that house our aquatic residents.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
-        {exhibits.map((exhibit, idx) => (
-          <div key={idx} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:bg-white/20 transition-all">
-            <h3 className="text-2xl font-semibold mb-3">{exhibit.name}</h3>
-            <div className="space-y-1 text-sm">
-              <p className="opacity-90"><strong>Location:</strong> {exhibit.location}</p>
-              <p className="opacity-90"><strong>Tanks:</strong> {exhibit.tanks}</p>
-              <p className="opacity-90"><strong>Type:</strong> {exhibit.type}</p>
-              <p className="opacity-90"><strong>Temperature:</strong> {exhibit.temp}</p>
-              <p className="opacity-90"><strong>Species:</strong> {exhibit.species}</p>
-              <p className="opacity-80 mt-2">{exhibit.description}</p>
+
+      {/* 3. Dynamic Rendering with Loading State */}
+      {isLoading ? (
+        <div className="text-center p-10">
+            <p className="text-lg">Loading exhibit data...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {exhibits.map((exhibit) => (
+            <div 
+              key={exhibit.exhibit_id} 
+              className="bg-white/10 p-6 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-300 hover:bg-white/20"
+            >
+              <h3 className="text-2xl font-semibold mb-2">{exhibit.exhibit_name}</h3>
+              <p className="text-sm opacity-80 mb-4">{exhibit.location}</p>
+
+              <div className="space-y-2 text-sm">
+                <p>
+                  <span className="font-medium">Total Tanks:</span> {exhibit.total_tanks}
+                </p>
+                <p>
+                  <span className="font-medium">Total Animals:</span> {exhibit.total_animals}
+                </p>
+                <p>
+                  <span className="font-medium">Lead Aquarist:</span> {exhibit.lead_aquarist_name}
+                </p>
+              </div>
+
+              <button className="mt-4 bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded-lg text-sm transition-colors">
+                View Details
+              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+          {exhibits.length === 0 && (
+            <div className="col-span-full text-center p-10 bg-white/10 rounded-xl">
+                <p className="text-lg">No exhibits were found.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
