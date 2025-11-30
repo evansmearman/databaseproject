@@ -1,16 +1,21 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Secret key for JWT (in production, use environment variable)
+const JWT_SECRET = "your-secret-key-change-this-in-production";
+
 // Create a connection to your SQL database
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "197355",
+    password: "Laundry78@78",
     database: "aquarium_db"
 });
 
@@ -23,7 +28,360 @@ db.connect(err => {
     console.log("MySQL connected to aquarium_db");
 });
 
+// ==================== AUTHENTICATION MIDDLEWARE ====================
 
+// Middleware to verify JWT token
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ error: "Access token required" });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: "Invalid or expired token" });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+// ==================== AUTHENTICATION ROUTES ====================
+
+// Register new staff member (with hashed password)
+app.post("/auth/register", async (req, res) => {
+    try {
+        const { staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule } = req.body;
+        
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            "INSERT INTO Staff (staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [staff_id, username, hashedPassword, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
+            (err, result) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ error: "Username or staff ID already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: "Staff member registered successfully" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DEV-ONLY: Create a staff user with plaintext password; server hashes it.
+// This endpoint is disabled in production environments.
+app.post('/auth/debug-create-staff', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Not allowed in production' });
+    }
+
+    try {
+        const {
+            staff_id,
+            username,
+            password,
+            first_name = null,
+            middle_initial = null,
+            last_name = null,
+            phone_number = null,
+            address = null,
+            date_of_birth = null,
+            sex = null,
+            ssn = '000-00-0000',
+            staff_type = 'Staff',
+            salary = null,
+            schedule = null,
+        } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'username and password are required' });
+        }
+
+        // Ensure username doesn't already exist
+        db.query('SELECT * FROM Staff WHERE username = ?', [username], async (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (results.length > 0) return res.status(409).json({ error: 'Username already exists' });
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const id = staff_id || ('D' + Date.now().toString().slice(-6));
+
+            db.query(
+                "INSERT INTO Staff (staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [id, username, hashedPassword, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
+                (err, result) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    return res.status(201).json({ message: 'Debug staff created', staff_id: id, username, staff_type });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Login staff member
+app.post("/auth/login", (req, res) => {
+    const { username, password } = req.body;
+    
+    db.query("SELECT * FROM Staff WHERE username = ?", [username], async (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid username or password" });
+        }
+        
+        const staff = results[0];
+        
+        try {
+            // Compare password with hashed password
+            const validPassword = await bcrypt.compare(password, staff.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Invalid username or password" });
+            }
+            
+            // Create JWT token
+            const token = jwt.sign(
+                { 
+                    staff_id: staff.staff_id, 
+                    username: staff.username,
+                    staff_type: staff.staff_type,
+                    user_type: 'staff'
+                },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            
+            // Return token and user info (without password)
+            res.json({
+                message: "Login successful",
+                token: token,
+                staff: {
+                    staff_id: staff.staff_id,
+                    username: staff.username,
+                    first_name: staff.first_name,
+                    last_name: staff.last_name,
+                    staff_type: staff.staff_type
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
+
+// Get current logged-in user info
+app.get("/auth/me", authenticateToken, (req, res) => {
+    if (req.user.user_type !== 'staff') {
+        return res.status(403).json({ error: "Access denied. Staff only." });
+    }
+    
+    db.query("SELECT staff_id, username, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, staff_type, salary, schedule FROM Staff WHERE staff_id = ?", 
+        [req.user.staff_id], 
+        (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (results.length === 0) {
+                return res.status(404).json({ error: "Staff member not found" });
+            }
+            res.json(results[0]);
+        }
+    );
+});
+
+// Change password
+app.put("/auth/change-password", authenticateToken, async (req, res) => {
+    if (req.user.user_type !== 'staff') {
+        return res.status(403).json({ error: "Access denied. Staff only." });
+    }
+    
+    const { oldPassword, newPassword } = req.body;
+    
+    try {
+        // Get current password
+        db.query("SELECT password FROM Staff WHERE staff_id = ?", [req.user.staff_id], async (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const staff = results[0];
+            const validPassword = await bcrypt.compare(oldPassword, staff.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+            
+            // Hash new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Update password
+            db.query("UPDATE Staff SET password = ? WHERE staff_id = ?", 
+                [hashedPassword, req.user.staff_id], 
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: "Password changed successfully" });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== MEMBER AUTHENTICATION ROUTES ====================
+
+// Register new member (with hashed password)
+app.post("/auth/member/register", async (req, res) => {
+    try {
+        const { membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id } = req.body;
+        
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            "INSERT INTO Member (membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [membership_id, first_name, middle_initial, last_name, email, hashedPassword, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id],
+            (err, result) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ error: "Email or membership ID already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: "Member registered successfully" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Member login
+app.post("/auth/member/login", (req, res) => {
+    const { email, password } = req.body;
+    
+    db.query("SELECT * FROM Member WHERE email = ?", [email], async (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+        
+        const member = results[0];
+        
+        try {
+            // Compare password with hashed password
+            const validPassword = await bcrypt.compare(password, member.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Invalid email or password" });
+            }
+            
+            // Create JWT token
+            const token = jwt.sign(
+                { 
+                    membership_id: member.membership_id, 
+                    email: member.email,
+                    membership_type: member.membership_type,
+                    user_type: 'member'
+                },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            
+            // Return token and user info (without password)
+            res.json({
+                message: "Login successful",
+                token: token,
+                member: {
+                    membership_id: member.membership_id,
+                    email: member.email,
+                    first_name: member.first_name,
+                    last_name: member.last_name,
+                    membership_type: member.membership_type
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
+
+// Get current logged-in member info
+app.get("/auth/member/me", authenticateToken, (req, res) => {
+    if (req.user.user_type !== 'member') {
+        return res.status(403).json({ error: "Access denied. Members only." });
+    }
+    
+    db.query("SELECT membership_id, first_name, middle_initial, last_name, email, phone_number, address, date_of_birth, sex, membership_type, visitor_id FROM Member WHERE membership_id = ?", 
+        [req.user.membership_id], 
+        (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (results.length === 0) {
+                return res.status(404).json({ error: "Member not found" });
+            }
+            res.json(results[0]);
+        }
+    );
+});
+
+// Member change password
+app.put("/auth/member/change-password", authenticateToken, async (req, res) => {
+    if (req.user.user_type !== 'member') {
+        return res.status(403).json({ error: "Access denied. Members only." });
+    }
+    
+    const { oldPassword, newPassword } = req.body;
+    
+    try {
+        // Get current password
+        db.query("SELECT password FROM Member WHERE membership_id = ?", [req.user.membership_id], async (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const member = results[0];
+            const validPassword = await bcrypt.compare(oldPassword, member.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+            
+            // Hash new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Update password
+            db.query("UPDATE Member SET password = ? WHERE membership_id = ?", 
+                [hashedPassword, req.user.membership_id], 
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: "Password changed successfully" });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ==================== FEATURED EXHIBITS (for Home Page) ====================
 app.get("/featured-exhibits", (req, res) => {
@@ -35,7 +393,7 @@ app.get("/featured-exhibits", (req, res) => {
             CONCAT(S.first_name, ' ', S.last_name) AS lead_aquarist_name
         FROM Exhibit E
         JOIN Staff S ON E.lead_aquarist_id = S.staff_id
-        LIMIT 3  -- Limit to 3 exhibits for the featured section
+        LIMIT 3
     `;
     db.query(query, (err, result) => {
         if (err) {
@@ -44,6 +402,301 @@ app.get("/featured-exhibits", (req, res) => {
         }
         res.json(result);
     });
+});
+
+// ==================== AUTHENTICATION MIDDLEWARE ====================
+
+// Middleware to verify JWT token
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ error: "Access token required" });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: "Invalid or expired token" });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+// ==================== AUTHENTICATION ROUTES ====================
+
+// Register new staff member (with hashed password)
+app.post("/auth/register", async (req, res) => {
+    try {
+        const { staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule } = req.body;
+        
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            "INSERT INTO Staff (staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [staff_id, username, hashedPassword, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
+            (err, result) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ error: "Username or staff ID already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: "Staff member registered successfully" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Login staff member
+app.post("/auth/login", (req, res) => {
+    const { username, password } = req.body;
+    
+    db.query("SELECT * FROM Staff WHERE username = ?", [username], async (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid username or password" });
+        }
+        
+        const staff = results[0];
+        
+        try {
+            // Compare password with hashed password
+            const validPassword = await bcrypt.compare(password, staff.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Invalid username or password" });
+            }
+            
+            // Create JWT token
+            const token = jwt.sign(
+                { 
+                    staff_id: staff.staff_id, 
+                    username: staff.username,
+                    staff_type: staff.staff_type 
+                },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            
+            // Return token and user info (without password)
+            res.json({
+                message: "Login successful",
+                token: token,
+                staff: {
+                    staff_id: staff.staff_id,
+                    username: staff.username,
+                    first_name: staff.first_name,
+                    last_name: staff.last_name,
+                    staff_type: staff.staff_type
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
+
+// Get current logged-in user info
+app.get("/auth/me", authenticateToken, (req, res) => {
+    db.query("SELECT staff_id, username, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, staff_type, salary, schedule FROM Staff WHERE staff_id = ?", 
+        [req.user.staff_id], 
+        (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (results.length === 0) {
+                return res.status(404).json({ error: "Staff member not found" });
+            }
+            res.json(results[0]);
+        }
+    );
+});
+
+// Change password
+app.put("/auth/change-password", authenticateToken, async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    
+    try {
+        // Get current password
+        db.query("SELECT password FROM Staff WHERE staff_id = ?", [req.user.staff_id], async (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const staff = results[0];
+            const validPassword = await bcrypt.compare(oldPassword, staff.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+            
+            // Hash new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Update password
+            db.query("UPDATE Staff SET password = ? WHERE staff_id = ?", 
+                [hashedPassword, req.user.staff_id], 
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: "Password changed successfully" });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== MEMBER AUTHENTICATION ROUTES ====================
+
+// Register new member (with hashed password)
+app.post("/auth/member/register", async (req, res) => {
+    try {
+        const { membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id } = req.body;
+        
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            "INSERT INTO Member (membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [membership_id, first_name, middle_initial, last_name, email, hashedPassword, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id],
+            (err, result) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ error: "Email or membership ID already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: "Member registered successfully" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Member login
+app.post("/auth/member/login", (req, res) => {
+    const { email, password } = req.body;
+    
+    db.query("SELECT * FROM Member WHERE email = ?", [email], async (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+        
+        const member = results[0];
+        
+        try {
+            // Compare password with hashed password
+            const validPassword = await bcrypt.compare(password, member.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Invalid email or password" });
+            }
+            
+            // Create JWT token
+            const token = jwt.sign(
+                { 
+                    membership_id: member.membership_id, 
+                    email: member.email,
+                    membership_type: member.membership_type,
+                    user_type: 'member'
+                },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            
+            // Return token and user info (without password)
+            res.json({
+                message: "Login successful",
+                token: token,
+                member: {
+                    membership_id: member.membership_id,
+                    email: member.email,
+                    first_name: member.first_name,
+                    last_name: member.last_name,
+                    membership_type: member.membership_type
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
+
+// Get current logged-in member info
+app.get("/auth/member/me", authenticateToken, (req, res) => {
+    if (req.user.user_type !== 'member') {
+        return res.status(403).json({ error: "Access denied. Members only." });
+    }
+    
+    db.query("SELECT membership_id, first_name, middle_initial, last_name, email, phone_number, address, date_of_birth, sex, membership_type, visitor_id FROM Member WHERE membership_id = ?", 
+        [req.user.membership_id], 
+        (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (results.length === 0) {
+                return res.status(404).json({ error: "Member not found" });
+            }
+            res.json(results[0]);
+        }
+    );
+});
+
+// Member change password
+app.put("/auth/member/change-password", authenticateToken, async (req, res) => {
+    if (req.user.user_type !== 'member') {
+        return res.status(403).json({ error: "Access denied. Members only." });
+    }
+    
+    const { oldPassword, newPassword } = req.body;
+    
+    try {
+        // Get current password
+        db.query("SELECT password FROM Member WHERE membership_id = ?", [req.user.membership_id], async (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const member = results[0];
+            const validPassword = await bcrypt.compare(oldPassword, member.password);
+            
+            if (!validPassword) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+            
+            // Hash new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Update password
+            db.query("UPDATE Member SET password = ? WHERE membership_id = ?", 
+                [hashedPassword, req.user.membership_id], 
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: "Password changed successfully" });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ==================== VISITOR ROUTES ====================
@@ -119,16 +772,24 @@ app.get("/members/:id", (req, res) => {
 });
 
 // Create new member
-app.post("/members", (req, res) => {
-    const { membership_id, first_name, middle_initial, last_name, email, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id } = req.body;
-    db.query(
-        "INSERT INTO Member (membership_id, first_name, middle_initial, last_name, email, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [membership_id, first_name, middle_initial, last_name, email, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: "Member created" });
-        }
-    );
+app.post("/members", async (req, res) => {
+    try {
+        const { membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id } = req.body;
+        
+        // Hash password if provided
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+        
+        db.query(
+            "INSERT INTO Member (membership_id, first_name, middle_initial, last_name, email, password, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [membership_id, first_name, middle_initial, last_name, email, hashedPassword, phone_number, address, date_of_birth, sex, ssn, membership_type, visitor_id],
+            (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(201).json({ message: "Member created" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ==================== STAFF ROUTES ====================
@@ -151,16 +812,24 @@ app.get("/staff/:id", (req, res) => {
 });
 
 // Create new staff
-app.post("/staff", (req, res) => {
-    const { staff_id, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule } = req.body;
-    db.query(
-        "INSERT INTO Staff (staff_id, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [staff_id, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: "Staff created" });
-        }
-    );
+app.post("/staff", async (req, res) => {
+    try {
+        const { staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule } = req.body;
+        
+        // Hash password if provided
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+        
+        db.query(
+            "INSERT INTO Staff (staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [staff_id, username, hashedPassword, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
+            (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(201).json({ message: "Staff created" });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ==================== EXHIBIT ROUTES ====================
@@ -360,28 +1029,15 @@ app.get("/staff/type/:type", (req, res) => {
 });
 
 // Get exhibits with animal count
-// ==================== EXHIBIT DETAILS (for Exhibits Page) ====================
-app.get("/exhibits-details", (req, res) => {
+app.get("/exhibits-stats", (req, res) => {
     const query = `
-        SELECT
-            E.exhibit_id,
-            E.exhibit_name,
-            E.location,
-            CONCAT(S.first_name, ' ', S.last_name) AS lead_aquarist_name,
-            COUNT(DISTINCT T.tank_id) AS total_tanks,
-            COUNT(DISTINCT A.animal_id) AS total_animals
-        FROM Exhibit E
-        LEFT JOIN Staff S ON E.lead_aquarist_id = S.staff_id
-        LEFT JOIN Tank T ON E.exhibit_id = T.exhibit_id
-        LEFT JOIN Animal A ON E.exhibit_id = A.exhibit_id
-        GROUP BY E.exhibit_id, E.exhibit_name, E.location, S.first_name, S.last_name
-        ORDER BY E.exhibit_name;
+        SELECT e.*, COUNT(a.animal_id) as animal_count
+        FROM Exhibit e
+        LEFT JOIN Animal a ON e.exhibit_id = a.exhibit_id
+        GROUP BY e.exhibit_id
     `;
     db.query(query, (err, result) => {
-        if (err) {
-            console.error("Error fetching exhibit details:", err);
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json(result);
     });
 });
@@ -391,12 +1047,22 @@ app.get("/", (req, res) => {
     res.json({ 
         message: "Aquarium Management API",
         endpoints: {
+            staff_auth: {
+                login: "POST /auth/login",
+                register: "POST /auth/register",
+                me: "GET /auth/me (requires token)",
+                changePassword: "PUT /auth/change-password (requires token)"
+            },
+            member_auth: {
+                login: "POST /auth/member/login",
+                register: "POST /auth/member/register",
+                me: "GET /auth/member/me (requires token)",
+                changePassword: "PUT /auth/member/change-password (requires token)"
+            },
             visitors: "/visitors",
             members: "/members",
             staff: "/staff",
             exhibits: "/exhibits",
-            featured_exhibits: "/featured-exhibits",
-            exhibits_details: "/exhibits-details",
             animals: "/animals",
             tanks: "/tanks",
             feeding_records: "/feeding-records",

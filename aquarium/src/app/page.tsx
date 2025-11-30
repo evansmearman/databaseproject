@@ -35,7 +35,31 @@ async function fetchExhibitDetails(): Promise<ExhibitDetail[]> {
 export default function AquariumPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState('home');
-  const [staffMode, setStaffMode] = useState(false);
+  const [userType, setUserType] = useState<string | null>(null);
+  
+  // keep auth state in sync with localStorage and listen for auth changes
+  useEffect(() => {
+    const syncAuth = () => {
+      if (typeof window === 'undefined') return;
+      const ut = localStorage.getItem('userType');
+      setUserType(ut);
+
+      const cp = localStorage.getItem('currentPage');
+      if (cp) setCurrentPage(cp as string);
+    };
+
+    syncAuth();
+
+    const onAuthChange = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (!detail) return;
+      if (typeof detail.userType === 'string') setUserType(detail.userType);
+      if (typeof detail.page === 'string') setCurrentPage(detail.page);
+    };
+
+    window.addEventListener('authChange', onAuthChange as EventListener);
+    return () => window.removeEventListener('authChange', onAuthChange as EventListener);
+  }, []);
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -46,12 +70,21 @@ export default function AquariumPage() {
     { id: 'visit', label: 'Plan Your Visit', icon: MapPin },
     { id: 'about', label: 'About Us', icon: Info },
     { id: 'auth', label: 'Login', icon: User },
-    { id: 'staff', label: 'Staff Dashboard', icon: User },
+    ...(userType === 'staff' ? [{ id: 'staff', label: 'Staff Dashboard', icon: User }] : []),
   ];
 
   const changePage = (pageId: SetStateAction<string>) => {
     setCurrentPage(pageId);
     setIsDrawerOpen(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userType');
+    localStorage.removeItem('currentPage');
+    setUserType(null);
+    setCurrentPage('home');
+    window.dispatchEvent(new CustomEvent('authChange', { detail: { userType: null, page: 'home' } }));
   };
 
   const renderPage = () => {
@@ -73,7 +106,7 @@ export default function AquariumPage() {
       case 'auth':
         return <AuthPage />;
       case 'staff':
-        return <StaffDashboard staffMode={staffMode} />;
+        return <StaffDashboard />;
       default:
         return <HomePage changePage={changePage} />;
     }
@@ -105,16 +138,14 @@ export default function AquariumPage() {
     </button>
     <h1 className="text-xl font-bold text-white">🐠 Inner Harbor Aquarium</h1>
   </div>
-
-  {/* STAFF MODE TOGGLE */}
-  <button
-    onClick={() => setStaffMode(!staffMode)}
-    className={`px-4 py-2 rounded-lg font-semibold transition ${
-      staffMode ? "bg-green-600" : "bg-white/20"
-    }`}
-  >
-    {staffMode ? "Staff Mode: ON" : "Staff Mode: OFF"}
-  </button>
+  {userType && (
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 rounded-lg font-semibold bg-red-600 hover:bg-red-700 transition"
+    >
+      Logout
+    </button>
+  )}
 </header>
 
 
@@ -744,47 +775,149 @@ function AuthPage() {
   const [mode, setMode] = useState<"member" | "staff" | "signup">("member");
 
   const [formData, setFormData] = useState({
+    // Member Login
     memberEmail: "",
     memberPassword: "",
-    staffId: "",
-    staffEmail: "",
+    
+    // Staff Login
+    staffUsername: "",
     staffPassword: "",
-    newMemberName: "",
-    newMemberEmail: "",
-    newMemberPassword: "",
+    
+    // Member Signup - All Fields
+    firstName: "",
+    middleInitial: "",
+    lastName: "",
+    email: "",
+    password: "",
+    phoneNumber: "",
+    address: "",
+    dateOfBirth: "",
+    sex: "",
+    ssn: "",
+    membershipType: "Silver", // Default
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (mode === "member") {
-      console.log("Member login:", {
-        email: formData.memberEmail,
-        password: formData.memberPassword,
-      });
+      // Member Login
+      try {
+        const response = await fetch("http://localhost:5000/auth/member/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.memberEmail,
+            password: formData.memberPassword,
+          }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log("Member login successful:", data);
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("userType", "member");
+          // update app state and navigate to home
+          localStorage.setItem('currentPage', 'home');
+          window.dispatchEvent(new CustomEvent('authChange', { detail: { userType: 'member', page: 'home' } }));
+        } else {
+          console.error("Login failed:", data.error);
+          alert(data.error);
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Failed to connect to server");
+      }
     } else if (mode === "staff") {
-      console.log("Staff login:", {
-        staffId: formData.staffId,
-        email: formData.staffEmail,
-        password: formData.staffPassword,
-      });
+      // Staff Login
+      try {
+        const response = await fetch("http://localhost:5000/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: formData.staffUsername,
+            password: formData.staffPassword,
+          }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log("Staff login successful:", data);
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("userType", "staff");
+          // update app state and go to staff dashboard
+          localStorage.setItem('currentPage', 'staff');
+          window.dispatchEvent(new CustomEvent('authChange', { detail: { userType: 'staff', page: 'staff' } }));
+        } else {
+          console.error("Login failed:", data.error);
+          alert(data.error);
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Failed to connect to server");
+      }
     } else {
-      console.log("New member account:", {
-        name: formData.newMemberName,
-        email: formData.newMemberEmail,
-        password: formData.newMemberPassword,
-      });
+      // Member Signup
+      // Generate membership ID (e.g., M + timestamp)
+      const membershipId = "M" + Date.now().toString().slice(-6);
+      
+      try {
+        const response = await fetch("http://localhost:5000/auth/member/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            membership_id: membershipId,
+            first_name: formData.firstName,
+            middle_initial: formData.middleInitial || null,
+            last_name: formData.lastName,
+            email: formData.email,
+            password: formData.password,
+            phone_number: formData.phoneNumber || null,
+            address: formData.address || null,
+            date_of_birth: formData.dateOfBirth || null,
+            sex: formData.sex || null,
+            ssn: formData.ssn || null,
+            membership_type: formData.membershipType,
+            visitor_id: null,
+          }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log("Registration successful:", data);
+          alert("Account created successfully! Please log in.");
+          setMode("member");
+          // Clear form
+          setFormData({
+            ...formData,
+            firstName: "",
+            middleInitial: "",
+            lastName: "",
+            email: "",
+            password: "",
+            phoneNumber: "",
+            address: "",
+            dateOfBirth: "",
+            sex: "",
+            ssn: "",
+            membershipType: "Silver",
+          });
+        } else {
+          console.error("Registration failed:", data.error);
+          alert(data.error);
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Failed to connect to server");
+      }
     }
   };
 
   return (
     <div className="px-6 py-12 min-h-screen flex items-center justify-center">
-      <div className="max-w-md w-full bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
+      <div className="max-w-2xl w-full bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-lg">
 
         {/* ---------------- HEADER ---------------- */}
-        <h1 className="text-3xl font-bold mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-6 text-center text-white">
           {mode === "member" && "Member Login"}
           {mode === "staff" && "Staff Login"}
           {mode === "signup" && "Become a Member"}
@@ -795,26 +928,26 @@ function AuthPage() {
           <div className="space-y-4">
 
             <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
+              <label className="block text-sm font-medium mb-2 text-white">Email</label>
               <input
                 type="email"
                 name="memberEmail"
                 value={formData.memberEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
                   focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your email"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
+              <label className="block text-sm font-medium mb-2 text-white">Password</label>
               <input
                 type="password"
                 name="memberPassword"
                 value={formData.memberPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
                   focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your password"
               />
@@ -828,7 +961,7 @@ function AuthPage() {
               Sign In
             </button>
 
-            <p className="mt-4 text-center">
+            <p className="mt-4 text-center text-white">
               <button
                 onClick={() => setMode("signup")}
                 className="text-blue-300 hover:underline"
@@ -850,40 +983,27 @@ function AuthPage() {
         {mode === "staff" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Staff ID</label>
+              <label className="block text-sm font-medium mb-2 text-white">Username</label>
               <input
                 type="text"
-                name="staffId"
-                value={formData.staffId}
+                name="staffUsername"
+                value={formData.staffUsername}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Enter your staff ID"
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Enter your username"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
-              <input
-                type="email"
-                name="staffEmail"
-                value={formData.staffEmail}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Enter your staff email"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
+              <label className="block text-sm font-medium mb-2 text-white">Password</label>
               <input
                 type="password"
                 name="staffPassword"
                 value={formData.staffPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="Enter your password"
               />
             </div>
@@ -896,7 +1016,7 @@ function AuthPage() {
               Staff Sign In
             </button>
 
-            <p className="mt-4 text-center">
+            <p className="mt-4 text-center text-white">
               <button
                 onClick={() => setMode("member")}
                 className="text-blue-300 hover:underline"
@@ -909,45 +1029,168 @@ function AuthPage() {
 
         {/* ---------------- MEMBER SIGN UP ---------------- */}
         {mode === "signup" && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-hide"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">First Name *</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="John"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">Last Name *</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Full Name</label>
+              <label className="block text-sm font-medium mb-2 text-white">Middle Initial</label>
               <input
                 type="text"
-                name="newMemberName"
-                value={formData.newMemberName}
+                name="middleInitial"
+                value={formData.middleInitial}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Enter your full name"
+                maxLength={1}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="M"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
+              <label className="block text-sm font-medium mb-2 text-white">Email *</label>
               <input
                 type="email"
-                name="newMemberEmail"
-                value={formData.newMemberEmail}
+                name="email"
+                value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Enter your email"
+                required
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="john.doe@email.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
+              <label className="block text-sm font-medium mb-2 text-white">Password *</label>
               <input
                 type="password"
-                name="newMemberPassword"
-                value={formData.newMemberPassword}
+                name="password"
+                value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 focus:border-white/50 
-                focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="Create a password"
+                required
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="Create a strong password"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Phone Number</label>
+              <input
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="555-0123"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Address</label>
+              <input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="123 Ocean Ave, Miami FL"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">Date of Birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">Sex</label>
+                <select
+                  name="sex"
+                  value={formData.sex}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white
+                  focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                >
+                  <option value="" className="bg-blue-900">Select...</option>
+                  <option value="M" className="bg-blue-900">Male</option>
+                  <option value="F" className="bg-blue-900">Female</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Social Security Number</label>
+              <input
+                type="text"
+                name="ssn"
+                value={formData.ssn}
+                onChange={handleChange}
+                maxLength={11}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="XXX-XX-XXXX"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white">Membership Type *</label>
+              <select
+                name="membershipType"
+                value={formData.membershipType}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white
+                focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+              >
+                <option value="Silver" className="bg-blue-900">Silver - $50/year</option>
+                <option value="Gold" className="bg-blue-900">Gold - $100/year</option>
+                <option value="Platinum" className="bg-blue-900">Platinum - $200/year</option>
+              </select>
             </div>
 
             <button
@@ -958,7 +1201,7 @@ function AuthPage() {
               Create Account
             </button>
 
-            <p className="mt-4 text-center text-sm">
+            <p className="mt-4 text-center text-sm text-white">
               Already a member?{" "}
               <button
                 onClick={() => setMode("member")}
@@ -977,7 +1220,7 @@ interface Record {
   [key: string]: string | number;
 }
 
-function StaffDashboard({ staffMode }: { staffMode: boolean }) {
+function StaffDashboard() {
   const [animals, setAnimals] = useState<Record[]>([]);
   const [staff, setStaff] = useState<Record[]>([]);
   const [exhibits, setExhibits] = useState<Record[]>([]);
@@ -988,11 +1231,13 @@ function StaffDashboard({ staffMode }: { staffMode: boolean }) {
   const [feedingRecords, setFeedingRecords] = useState<Record[]>([]);
   const [healthRecords, setHealthRecords] = useState<Record[]>([]);
 
-  if (!staffMode) {
+  const userType = typeof window !== 'undefined' ? localStorage.getItem('userType') : null;
+
+  if (userType !== 'staff') {
     return (
       <div className="px-6 py-12 text-center">
         <h1 className="text-4xl font-bold mb-4">Staff Dashboard</h1>
-        <p className="text-lg opacity-80">You must enable Staff Mode to access this page.</p>
+        <p className="text-lg opacity-80">Access denied. Staff only.</p>
       </div>
     );
   }
