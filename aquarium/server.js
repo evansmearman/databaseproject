@@ -960,15 +960,23 @@ app.get("/animals/species/:species", (req, res) => {
 
 // Create new animal
 app.post("/animals", (req, res) => {
-    const { animal_id, name, species, date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id } = req.body;
-    db.query(
-        "INSERT INTO Animal (animal_id, name, species, date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [animal_id, name, species, date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: "Animal created" });
-        }
-    );
+  const { animal_id, name, species, date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id } = req.body;
+
+  // 3. DATA CLEANUP: Convert empty strings from the form to NULL for the database.
+  // This is vital for Date and CHAR(1) columns to prevent MySQL errors.
+  let clean_date_of_birth = date_of_birth ? date_of_birth.substring(0, 10) : null;
+  const clean_sex = sex || null;
+  const clean_tank_id = tank_id || null;
+  
+  
+  db.query(
+    "INSERT INTO Animal (animal_id, name, species, clean_date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [animal_id, name, species, clean_date_of_birth, clean_sex, food_type, feeding_type, exhibit_id, clean_tank_id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ message: "Animal created" });
+    }
+  );
 });
 
 // ==================== TANK ROUTES ====================
@@ -988,6 +996,32 @@ app.get("/tanks/:id", (req, res) => {
         if (result.length === 0) return res.status(404).json({ message: "Tank not found" });
         res.json(result[0]);
     });
+});
+
+// In server.js
+
+// Function 3: POST route to add a new Tank
+app.post("/tanks", (req, res) => {
+  const { tank_id, tank_size, tank_type, water_type, exhibit_id } = req.body;
+
+  const clean_tank_id = tank_id || null; // This should be provided, but use null just in case
+  const clean_tank_size = tank_size || null;
+  const clean_tank_type = tank_type || null;
+  const clean_water_type = water_type || null;
+  const clean_exhibit_id = exhibit_id || null; // exhibit_id is NULLABLE in your DB schema.
+  const query = `INSERT INTO Tank (tank_id, tank_size, tank_type, water_type, exhibit_id) VALUES (?, ?, ?, ?, ?)`;
+  
+  db.query(
+    query, 
+    [clean_tank_id, clean_tank_size, clean_tank_type, clean_water_type, clean_exhibit_id], 
+    (err, result) => {
+      if (err) {
+        console.error("SQL Error adding tank:", err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ message: "Tank created successfully", tank_id: clean_tank_id });
+    }
+  );
 });
 
 // ==================== FEEDING RECORD ROUTES ====================
@@ -1010,10 +1044,10 @@ app.get("/feeding-records/animal/:animal_id", (req, res) => {
 
 // Create feeding record
 app.post("/feeding-records", (req, res) => {
-    const { animal_id, aquarist_id, food_amount, feeding_time } = req.body;
+    const { feeding_id, animal_id, aquarist_id, food_amount, feeding_time } = req.body;
     db.query(
-        "INSERT INTO Feeding_Record (animal_id, aquarist_id, food_amount, feeding_time) VALUES (?, ?, ?, ?)",
-        [animal_id, aquarist_id, food_amount, feeding_time],
+        "INSERT INTO Feeding_Record (feeding_id, animal_id, aquarist_id, food_amount, feeding_time) VALUES (?, ?, ?, ?, ?)",
+        [feeding_id, animal_id, aquarist_id, food_amount, feeding_time],
         (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ id: result.insertId, message: "Feeding record created" });
@@ -1041,10 +1075,10 @@ app.get("/health-records/animal/:animal_id", (req, res) => {
 
 // Create health record
 app.post("/health-records", (req, res) => {
-    const { animal_id, vet_id, date, conditions, notes } = req.body;
+    const { record_id, animal_id, vet_id, date, conditions, notes } = req.body;
     db.query(
-        "INSERT INTO Health_Record (animal_id, vet_id, date, conditions, notes) VALUES (?, ?, ?, ?, ?)",
-        [animal_id, vet_id, date, conditions, notes],
+        "INSERT INTO Health_Record (record_id, animal_id, vet_id, date, conditions, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        [record_id, animal_id, vet_id, date, conditions, notes],
         (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ id: result.insertId, message: "Health record created" });

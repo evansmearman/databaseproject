@@ -5,6 +5,12 @@ import { SetStateAction, useState, useEffect } from 'react';
 import { Menu, X, Home, Fish, Info, MapPin, User, Users, BookOpen, Heart } from 'lucide-react';
 import Image from 'next/image';
 
+// Add this near the top of page.tsx
+interface ListDisplayProps {
+    label: string;
+    endpoint: string; // The URL path (e.g., 'animals', 'tanks')
+}
+
 // Define the expected structure for Exhibits Page data from the database
 interface ExhibitDetail {
   exhibit_id: string;
@@ -1421,6 +1427,8 @@ interface Record {
   [key: string]: string | number;
 }
 
+
+
 function StaffDashboard() {
   const [animals, setAnimals] = useState<Record[]>([]);
   const [exhibits, setExhibits] = useState<Record[]>([]);
@@ -1430,14 +1438,39 @@ function StaffDashboard() {
 
   const userType = typeof window !== 'undefined' ? localStorage.getItem('userType') : null;
 
-  if (userType !== 'staff') {
-    return (
-      <div className="px-6 py-12 text-center">
-        <h1 className="text-4xl font-bold mb-4">Staff Dashboard</h1>
-        <p className="text-lg opacity-80">Access denied. Staff only.</p>
-      </div>
-    );
-  }
+  const handleFormSubmission = async (endpoint: string, data: Record) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Authentication token missing. Please log in.");
+      return;
+    }
+    
+    try {
+      const res = await fetch(`http://localhost:5000/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Pass JWT
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+      }
+
+      alert(`${endpoint.split('/')[0]} added successfully!`);
+      // Optional: Trigger a refresh of the list display here
+      // e.g., if endpoint === 'animals', call a function to refresh animal list
+        
+    } catch (error) {
+      const err = error as Error; // cast safely
+
+      alert(`Failed to add record: ${err.message}`);
+      console.error("Submission Error:", err);
+    }
+  };
 
   return (
     <div className="px-6 py-12">
@@ -1454,37 +1487,37 @@ function StaffDashboard() {
         {/* ANIMAL FORM */}
         <StaffInputCard
           title="Add Animal"
-          onSubmit={(data) => setAnimals([...animals, data])}
-          fields={["id", "name", "species", "exhibit", "feedingType"]}
+          onSubmit={(data) => handleFormSubmission("animals", data)} // <--- UPDATED
+          fields={["animal_id (AXXX)", "name", "species", "date_of_birth (YYYY-MM-DD)", "sex (M/F)", "food_type", "feeding_type", "exhibit_id (EXXX)", "tank_id (TXXX)"]}
         />
 
         {/* EXHIBIT FORM */}
         <StaffInputCard
           title="Add Exhibit"
-          onSubmit={(data) => setExhibits([...exhibits, data])}
-          fields={["id", "name", "location"]}
+          onSubmit={(data) => handleFormSubmission("exhibits", data)} // <--- UPDATED
+          fields={["id (EXXX)", "name", "location", "lead_aquarist_id"]}
         />
 
         {/* TANK FORM */}
         <StaffInputCard
           title="Add Tank"
-          onSubmit={(data) => setTanks([...tanks, data])}
-          fields={["id", "name", "exhibit", "temperature"]}
+          onSubmit={(data) => handleFormSubmission("tanks", data)} // <--- UPDATED
+          fields={["tank_id (TXXX)", "tank_size", "tank_type", "water_type", "exhibit_id (EXXX)"]}// tank id	tank size	tank type	water type	exhibit i
         />
 
 
         {/* FEEDING RECORD */}
         <StaffInputCard
           title="Add Feeding Record"
-          onSubmit={(data) => setFeedingRecords([...feedingRecords, data])}
-          fields={["animalId", "food", "time"]}
+          onSubmit={(data) => handleFormSubmission("feedingRecords", data)} // <--- UPDATED
+          fields={["feeding_id", "animal_id (AXXX)", "aquarist_id (SXXX)", "food_amount", "feeding_time (YYYY-MM-DD HH:MM:SS)"]}
         />
 
         {/* HEALTH RECORD */}
         <StaffInputCard
           title="Add Health Record"
-          onSubmit={(data) => setHealthRecords([...healthRecords, data])}
-          fields={["animalId", "condition", "notes"]}
+          onSubmit={(data) => handleFormSubmission("healthRecords", data)} // <--- UPDATED
+          fields={["record_id", "animal_id (AXXX)", "vet_id (SXXX)", "date (YYYY-MM-DD)", "conditions", "notes"]}
         />
 
       </div>
@@ -1493,15 +1526,17 @@ function StaffDashboard() {
       <div className="mt-16">
         <h2 className="text-3xl font-bold mb-4">Generated Lists</h2>
 
-        <ListDisplay label="Animals" data={animals} />
-        <ListDisplay label="Exhibits" data={exhibits} />
-        <ListDisplay label="Tanks" data={tanks} />
-        <ListDisplay label="Feeding Records" data={feedingRecords} />
-        <ListDisplay label="Health Records" data={healthRecords} />
+        {/* UPDATED CALLS (Functions 6-10) */}
+        <ListDisplay label="Animals" endpoint="animals" />
+        <ListDisplay label="Exhibits" endpoint="exhibits" />             
+        <ListDisplay label="Tanks" endpoint="tanks" />                    
+        <ListDisplay label="Feeding Records" endpoint="feeding-records" />
+        <ListDisplay label="Health Records" endpoint="health-records" />  
       </div>
     </div>
   );
 }
+
 type StaffInputCardProps = {
   title: string;
   fields: string[];
@@ -1539,17 +1574,86 @@ function StaffInputCard({ title, fields, onSubmit }: StaffInputCardProps) {
     </div>
   );
 }
-function ListDisplay({ label, data }: { label: string; data: Record[] }) {
-  return (
-    <div className="mb-8 bg-white/10 p-6 rounded-xl backdrop-blur">
-      <h3 className="text-2xl font-bold mb-4">{label}</h3>
-      {data.length === 0 ? (
-        <p className="opacity-70">No entries.</p>
-      ) : (
-        <pre className="bg-black/20 p-4 rounded text-sm whitespace-pre-wrap">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      )}
-    </div>
-  );
+
+function ListDisplay({ label, endpoint }: ListDisplayProps) {
+    const [data, setData] = useState<Record[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // This effect runs once on component mount (and only if the endpoint changes)
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            
+            try {
+                const res = await fetch(`http://localhost:5000/${endpoint}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+                }
+
+                const fetchedData: Record[] = await res.json();
+                setData(fetchedData);
+            } catch (error) {
+                console.error(`Fetch Error for ${label}:`, error);
+                // Only show a simple error message to the user
+                alert(`Failed to load ${label}. Check server connection.`);
+                setData([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [endpoint]); // Fetch when the component mounts or the endpoint changes
+
+    if (isLoading) {
+        return (
+            <div className="bg-white/10 p-6 rounded-xl backdrop-blur-md mt-4 text-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                <p>Loading {label}...</p>
+            </div>
+        );
+    }
+    
+    // --- Aesthetic Table Generation ---
+    const headers = data.length > 0 ? Object.keys(data[0]) : [];
+
+    return (
+        <div className="bg-white/10 p-6 rounded-xl backdrop-blur-md mt-4">
+            <h3 className="text-xl font-bold mb-3 border-b border-white/20 pb-2">{label}</h3>
+            
+            {data.length === 0 ? (
+                <p className="text-sm opacity-70">No {label.toLowerCase()} found in the database.</p>
+            ) : (
+                <div className="mt-4 max-h-60 overflow-y-auto">
+                    <table className="min-w-full text-sm text-left">
+                        <thead className="text-xs uppercase bg-black/30 sticky top-0">
+                            <tr>
+                                {headers.map(header => (
+                                    <th key={header} scope="col" className="px-3 py-2 whitespace-nowrap">{header.replace(/_/g, ' ')}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((row, rowIndex) => (
+                                <tr key={rowIndex} className="border-b border-white/10 hover:bg-white/10">
+                                    {headers.map(header => (
+                                        <td key={header} className="px-3 py-2 whitespace-nowrap">
+                                            {String(row[header] ?? 'N/A')}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
 }
