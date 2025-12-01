@@ -15,6 +15,37 @@ interface ExhibitDetail {
   total_animals: number;      // Calculated from DB
 }
 
+// ==========================================================
+// 1. Data Structure Interface (Type Definition)
+// Define the expected structure for Animal data from the database
+// ==========================================================
+interface AnimalDetail {
+  animal_id: number;
+  common_name: string;
+  species: string;
+  birth_date: string; // e.g., "2018-03-15T00:00:00.000Z"
+  sex: 'M' | 'F' | 'Unknown';
+  exhibit_name: string;
+  // Assuming the API endpoint includes these fields, or we use placeholders.
+  animal_group: string; 
+  feeding_type: string;
+}
+
+interface TankDetail {
+  tank_id: string;
+  tank_type: string;
+  tank_size: number;
+  water_type: string;
+  // This name MUST match the alias in the SQL query above!
+}
+
+interface FullExhibitDetail {
+  exhibit_name: string;
+  location: string;
+  lead_aquarist_name: string;
+  tanks: TankDetail[];
+}
+
 // Function to handle the API call for the Exhibits Page
 async function fetchExhibitDetails(): Promise<ExhibitDetail[]> {
   const API_URL = "http://localhost:5000/exhibits-details"; 
@@ -490,33 +521,69 @@ function HomePage({ changePage }: { changePage: (page: string) => void }) {
 // ADDED IMPORTS: Ensure 'useEffect' is imported from 'react' at the top of page.tsx.
 // import { SetStateAction, useState, useEffect } from 'react';
 
-function ExhibitsPage() {
-  // 1. Initialize state for data and loading status
-  const [exhibits, setExhibits] = useState<ExhibitDetail[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Fetch data when the component mounts
+export function ExhibitsPage() {
+  const [exhibits, setExhibits] = useState<ExhibitDetail[]>([]); 
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // State for Modal Management
+  const [isModalLoading, setIsModalLoading] = useState(false);
+  const [selectedExhibit, setSelectedExhibit] = useState<FullExhibitDetail | null>(null);
+
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      const data = await fetchExhibitDetails();
-      setExhibits(data);
-      setIsLoading(false);
-    }
-    loadData();
-  }, []); // Empty array ensures this runs only once on mount
+    setIsLoading(true);
+    fetchExhibitDetails() 
+      .then(data => {
+        setExhibits(data);
+        setError(null);
+      })
+      .catch(e => {
+        console.error("Failed to load exhibits:", e);
+        setError("Failed to load exhibit data. Please check server connection (port 5000) and API route."); 
+        setExhibits([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
+
+  const showDetails = async (exhibitId: string) => {
+    setIsModalLoading(true);
+    const details = await fetchFullExhibitDetails(exhibitId);
+    setSelectedExhibit(details);
+    setIsModalLoading(false);
+  };
+
+  const closeModal = () => {
+    setSelectedExhibit(null);
+  };
+  
+  // --- RENDERING LOGIC ---
+
+  if (error) {
+    return (
+      <div className="p-6 text-white text-center">
+        <div className="text-red-400 p-8 bg-red-900/50 rounded-xl">
+          <h2 className="text-2xl font-bold mb-2">Data Error</h2>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-white">
       <h2 className="text-4xl font-bold mb-8">Exhibits & Tanks</h2>
       <p className="text-lg opacity-80 mb-6">
         Explore our diverse ecosystems and the tanks that house our aquatic residents.
       </p>
 
-      {/* 3. Dynamic Rendering with Loading State */}
+      {/* Dynamic Rendering with Loading State */}
       {isLoading ? (
         <div className="text-center p-10">
-            <p className="text-lg">Loading exhibit data...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+          <p className="text-lg">Loading exhibit data...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -540,75 +607,208 @@ function ExhibitsPage() {
                 </p>
               </div>
 
-              <button className="mt-4 bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded-lg text-sm transition-colors">
-                View Details
+              {/* Button to open the modal */}
+              <button 
+                onClick={() => showDetails(exhibit.exhibit_id)}
+                className="mt-4 bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+                disabled={isModalLoading}
+              >
+                {isModalLoading && selectedExhibit === null ? 'Loading...' : 'View Details'}
               </button>
             </div>
           ))}
           {exhibits.length === 0 && (
             <div className="col-span-full text-center p-10 bg-white/10 rounded-xl">
-                <p className="text-lg">No exhibits were found.</p>
+                <p className="text-lg font-bold">No exhibits were found.</p>
             </div>
           )}
         </div>
       )}
+
+      {/* Renders the modal when a details object is available */}
+      {selectedExhibit && <ExhibitDetailModal exhibit={selectedExhibit} onClose={closeModal} />}
     </div>
   );
 }
 
-function AnimalsPage() {
-  const animals = [
-    { 
-      id: 'anm001',
-      name: 'Thunder', 
-      species: 'Sand Tiger Shark', 
-      group: 'Sharks',
-      sex: 'Male', 
-      dob: '2018-03-15', 
-      exhibit: 'Shark Tank',
-      feedingType: 'Carnivore'
-    },
-    { 
-      id: 'anm002',
-      name: 'Luna', 
-      species: 'Nurse Shark', 
-      group: 'Sharks',
-      sex: 'Female', 
-      dob: '2019-07-22', 
-      exhibit: 'Shark Tank',
-      feedingType: 'Carnivore'
-    },
-    { 
-      id: 'anm011',
-      name: 'Sheldon', 
-      species: 'Green Sea Turtle', 
-      group: 'Turtles',
-      sex: 'Male', 
-      dob: '2015-08-12', 
-      exhibit: 'Coral Reef',
-      feedingType: 'Herbivore'
-    },
-    { 
-      id: 'anm021',
-      name: 'Nemo Jr.', 
-      species: 'Clownfish', 
-      group: 'Tropical Fish',
-      sex: 'Male', 
-      dob: '2023-09-01', 
-      exhibit: 'Coral Reef',
-      feedingType: 'Omnivore'
-    },
-  ];
+async function fetchFullExhibitDetails(exhibitId: string): Promise<FullExhibitDetail | null> {
+  const API_URL = `http://localhost:5000/exhibits-details/${exhibitId}`; 
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) {
+      // **CRITICAL: If the server returns a 404 or 500, this path is hit.**
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return res.json() as Promise<FullExhibitDetail>;
+  } catch (error) {
+    // **This block is executed on failure (e.g., connection refusal, 404)**
+    console.error(`Fetch error for exhibit ${exhibitId}:`, error); 
+    return null; // This 'null' prevents the modal from opening
+  }
+}
+
+
+
+// ==========================================================
+// 2. API Fetching Function
+// This mimics the fetchExhibitDetails function structure.
+// ==========================================================
+async function fetchAnimalDetails(): Promise<AnimalDetail[]> {
+  // The API endpoint is derived from the server.js root list: "animals": "/animals"
+  const API_URL = "http://localhost:5000/animals"; 
+  
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data: AnimalDetail[] = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching animal details:", error);
+    return []; // Return an empty array on failure
+  }
+}
+
+function ExhibitDetailModal({ exhibit, onClose }: { exhibit: FullExhibitDetail | null, onClose: () => void }) {
+  // Since X is imported at the top of page.tsx, we can use it directly.
+
+  if (!exhibit) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 text-white"
+      onClick={onClose} 
+    >
+      <div 
+        className="bg-blue-950/90 backdrop-blur-md p-8 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl transition-all duration-300"
+        onClick={(e) => e.stopPropagation()} 
+      >
+        <div className="flex justify-between items-start border-b border-white/20 pb-3 mb-4">
+          <h3 className="text-3xl font-extrabold text-blue-300">{exhibit.exhibit_name}</h3>
+          <button 
+            onClick={onClose} 
+            className="text-white hover:text-red-400 transition-colors"
+          >
+            {/* Using the X component directly */}
+            <X size={24} />
+          </button>
+        </div>
+
+        <p className="text-lg mb-4">
+          <span className="font-bold">Location:</span> {exhibit.location} | <span className="font-bold">Lead Aquarist:</span> {exhibit.lead_aquarist_name}
+        </p>
+
+        <h4 className="text-2xl font-semibold mt-6 mb-4 border-b border-white/10 pb-2">
+          Associated Tanks ({exhibit.tanks.length})
+        </h4>
+
+        {exhibit.tanks.length === 0 ? (
+          <p className="opacity-70 italic">This exhibit does not currently have any tanks recorded.</p>
+        ) : (
+          <div className="space-y-4">
+            {exhibit.tanks.map(tank => (
+              <div key={tank.tank_id} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                <p className="font-bold text-xl mb-1">Tank ID: {tank.tank_id}</p>
+                <div className="grid grid-cols-2 gap-x-4 text-sm opacity-80">
+                  <p>Type: **{tank.tank_type}**</p>
+                  <p>Water: **{tank.water_type}**</p>
+                  {/* Update the key used here */}
+                  <p className="col-span-2">Volume: **{tank.tank_size.toString()}** gallons</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================
+// 3. Animals Page Component
+// ==========================================================
+
+// NOTE: We do NOT redefine the 'Record' type to avoid the build error.
+// We rely on the existing ListDisplay definition: 
+// function ListDisplay({ label, data }: { label: string; data: Record[] }) { ... } 
+
+// We rely on the existing ListDisplay definition: 
+// function ListDisplay({ label, data }: { label: string; data: Record[] }) { ... } 
+
+export function AnimalsPage() {
+  const [animals, setAnimals] = useState<AnimalDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchAnimalDetails()
+      .then(data => {
+        setAnimals(data);
+        setError(null);
+      })
+      .catch(e => {
+        console.error("Failed to load animals:", e);
+        setError("Failed to load animal data. Check the server connection and API endpoint.");
+        setAnimals([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
+
+  // --- RENDERING LOGIC ---
+
+  if (isLoading) {
+    return (
+      <div className="text-white text-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+        <p>Loading Animal Records...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-400 text-center p-8 bg-red-900/50 rounded-lg">
+        <h2 className="text-xl font-bold mb-2">Error!</h2>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (animals.length === 0) {
+    return (
+      <div className="text-white text-center p-8">
+        <p className="text-xl font-bold">No Animals Found</p>
+        <p className="text-gray-400">The API returned an empty list of animals.</p>
+      </div>
+    );
+  }
+  
+  // Map fetched data to the display keys requested in the output format
+  const mappedAnimals = animals.map(animal => ({
+    id: `ANM${String(animal.animal_id).padStart(3, '0')}`, // Format ID like 'anm001'
+    name: animal.common_name, 
+    species: animal.species, 
+    group: animal.animal_group || 'Unspecified', // Use fallback if API doesn't return
+    sex: animal.sex === 'M' ? 'Male' : (animal.sex === 'F' ? 'Female' : 'Unknown'),
+    dob: animal.birth_date ? animal.birth_date.split('T')[0] : 'N/A', // Clean up date
+    exhibit: animal.exhibit_name,
+    feedingType: animal.feeding_type || 'N/A', // Use fallback if API doesn't return
+  }));
+
 
   return (
     <div className="px-6 py-12">
-      <h1 className="text-4xl font-bold mb-4 text-center">Our Animals</h1>
-      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto">
+      <h1 className="text-4xl font-bold mb-4 text-center text-white">Our Animals 🐬</h1>
+      <p className="text-center opacity-90 mb-8 max-w-3xl mx-auto text-white">
         Meet our aquatic residents receiving specialized care from dedicated aquarists.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
-        {animals.map((animal) => (
-          <div key={animal.id} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg">
+        {mappedAnimals.map((animal) => (
+          <div key={animal.id} className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-lg text-white">
             <h3 className="text-2xl font-semibold mb-3">{animal.name}</h3>
             <div className="space-y-1 text-sm">
               <p className="opacity-90"><strong>Animal ID:</strong> {animal.id}</p>
@@ -625,6 +825,7 @@ function AnimalsPage() {
     </div>
   );
 }
+
 
 function ProgramsPage() {
   const programs = [
@@ -1222,12 +1423,8 @@ interface Record {
 
 function StaffDashboard() {
   const [animals, setAnimals] = useState<Record[]>([]);
-  const [staff, setStaff] = useState<Record[]>([]);
   const [exhibits, setExhibits] = useState<Record[]>([]);
   const [tanks, setTanks] = useState<Record[]>([]);
-  const [programs, setPrograms] = useState<Record[]>([]);
-  const [visitors, setVisitors] = useState<Record[]>([]);
-  const [memberships, setMemberships] = useState<Record[]>([]);
   const [feedingRecords, setFeedingRecords] = useState<Record[]>([]);
   const [healthRecords, setHealthRecords] = useState<Record[]>([]);
 
@@ -1261,13 +1458,6 @@ function StaffDashboard() {
           fields={["id", "name", "species", "exhibit", "feedingType"]}
         />
 
-        {/* STAFF FORM */}
-        <StaffInputCard
-          title="Add Staff Member"
-          onSubmit={(data) => setStaff([...staff, data])}
-          fields={["id", "name", "role", "phone"]}
-        />
-
         {/* EXHIBIT FORM */}
         <StaffInputCard
           title="Add Exhibit"
@@ -1282,26 +1472,6 @@ function StaffDashboard() {
           fields={["id", "name", "exhibit", "temperature"]}
         />
 
-        {/* PROGRAM FORM */}
-        <StaffInputCard
-          title="Add Program"
-          onSubmit={(data) => setPrograms([...programs, data])}
-          fields={["id", "name", "schedule"]}
-        />
-
-        {/* VISITOR FORM */}
-        <StaffInputCard
-          title="Add Visitor"
-          onSubmit={(data) => setVisitors([...visitors, data])}
-          fields={["id", "name", "guardian", "emergencyPhone"]}
-        />
-
-        {/* MEMBERSHIP FORM */}
-        <StaffInputCard
-          title="Add Membership"
-          onSubmit={(data) => setMemberships([...memberships, data])}
-          fields={["id", "memberName", "tier"]}
-        />
 
         {/* FEEDING RECORD */}
         <StaffInputCard
@@ -1324,12 +1494,8 @@ function StaffDashboard() {
         <h2 className="text-3xl font-bold mb-4">Generated Lists</h2>
 
         <ListDisplay label="Animals" data={animals} />
-        <ListDisplay label="Staff" data={staff} />
         <ListDisplay label="Exhibits" data={exhibits} />
         <ListDisplay label="Tanks" data={tanks} />
-        <ListDisplay label="Programs" data={programs} />
-        <ListDisplay label="Visitors" data={visitors} />
-        <ListDisplay label="Memberships" data={memberships} />
         <ListDisplay label="Feeding Records" data={feedingRecords} />
         <ListDisplay label="Health Records" data={healthRecords} />
       </div>

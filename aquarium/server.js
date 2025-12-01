@@ -15,7 +15,7 @@ const JWT_SECRET = "your-secret-key-change-this-in-production";
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "Laundry78@78",
+    password: "197355",
     database: "aquarium_db"
 });
 
@@ -401,6 +401,73 @@ app.get("/featured-exhibits", (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         res.json(result);
+    });
+});
+
+app.get("/exhibits-details", (req, res) => {
+    const query = `
+        SELECT 
+            E.exhibit_id,
+            E.exhibit_name,
+            E.location,
+            -- COALESCE handles cases where lead_aquarist_id might be NULL or invalid
+            COALESCE(CONCAT(S.first_name, ' ', S.last_name), 'Unassigned') AS lead_aquarist_name,
+            -- Faster COUNT using subqueries for specific exhibit_id
+            (SELECT COUNT(T.tank_id) FROM Tank T WHERE T.exhibit_id = E.exhibit_id) AS total_tanks,
+            (SELECT COUNT(A.animal_id) FROM Animal A WHERE A.exhibit_id = E.exhibit_id) AS total_animals
+        FROM Exhibit E
+        LEFT JOIN Staff S ON E.lead_aquarist_id = S.staff_id; -- Use LEFT JOIN to return ALL exhibits
+    `;
+    db.query(query, (err, result) => {
+        if (err) {
+            console.error("Error fetching exhibits details:", err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(result);
+    });
+});
+
+app.get("/exhibits-details/:id", (req, res) => {
+    const exhibitId = req.params.id;
+    const query = `
+        SELECT 
+            E.exhibit_name,
+            E.location,
+            COALESCE(CONCAT(S.first_name, ' ', S.last_name), 'Unassigned') AS lead_aquarist_name,
+            T.tank_id,
+            T.tank_type,
+            T.water_type,
+            T.tank_size /* Querying the correct column */
+        FROM Exhibit E
+        LEFT JOIN Staff S ON E.lead_aquarist_id = S.staff_id
+        LEFT JOIN Tank T ON E.exhibit_id = T.exhibit_id
+        WHERE E.exhibit_id = ?
+        ORDER BY T.tank_id;
+    `;
+    db.query(query, [exhibitId], (err, result) => {
+        if (err) {
+            console.error("Error fetching single exhibit details:", err);
+            return res.status(500).json({ error: "Database error during detail fetch." });
+        }
+        
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Exhibit not found or has no tanks." });
+        }
+        
+        // Group the flat SQL result into a structured object
+        const exhibit = {
+            exhibit_name: result[0].exhibit_name,
+            location: result[0].location,
+            lead_aquarist_name: result[0].lead_aquarist_name,
+            tanks: result.map(row => ({
+                tank_id: row.tank_id,
+                tank_type: row.tank_type,
+                water_type: row.water_type,
+                tank_size: row.tank_size // <--- *** THIS IS THE CRITICAL ADDITION ***
+            })).filter(tank => tank.tank_id !== null) 
+        };
+        
+        res.json(exhibit);
     });
 });
 
