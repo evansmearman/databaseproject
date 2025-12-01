@@ -891,18 +891,18 @@ function ProgramsPage() {
 function MembershipPage() {
   const memberships = [
     {
-      type: 'Individual',
-      price: '$65/year',
+      type: 'Silver',
+      price: '$50/year',
       benefits: ['Unlimited admission for 1', '10% gift shop discount', 'Member events', 'Free parking']
     },
     {
-      type: 'Family',
-      price: '$120/year',
+      type: 'Gold',
+      price: '$100/year',
       benefits: ['Admission for up to 4', '15% discounts', 'Priority registration', 'Member preview days']
     },
     {
-      type: 'Corporate',
-      price: '$500/year',
+      type: 'Platinum',
+      price: '$200/year',
       benefits: ['Admission for up to 10', '20% discounts', 'Behind-scenes tour', 'Donor recognition']
     }
   ];
