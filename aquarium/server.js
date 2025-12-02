@@ -4,28 +4,34 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+console.log("🚀 [DEBUG] Server initialization started...");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+console.log("🚀 [DEBUG] Express app created");
+
 // Secret key for JWT (in production, use environment variable)
 const JWT_SECRET = "your-secret-key-change-this-in-production";
+
+console.log("🚀 [DEBUG] Setting up MySQL connection...");
 
 // Create a connection to your SQL database
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "197355",
+    password: "Laundry78@78",
     database: "aquarium_db"
 });
 
 // Test the connection
 db.connect(err => {
     if (err) {
-        console.error("Error connecting to MySQL:", err);
+        console.error("❌ [DEBUG] Error connecting to MySQL:", err);
         throw err;
     }
-    console.log("MySQL connected to aquarium_db");
+    console.log("✅ [DEBUG] MySQL connected to aquarium_db");
 });
 
 // ==================== AUTHENTICATION MIDDLEWARE ====================
@@ -78,53 +84,151 @@ app.post("/auth/register", async (req, res) => {
 
 // DEV-ONLY: Create a staff user with plaintext password; server hashes it.
 // This endpoint is disabled in production environments.
-app.post('/auth/debug-create-staff', async (req, res) => {
+app.post('/auth/debug-create-admin', async (req, res) => {
+    // Only allow in development
     if (process.env.NODE_ENV === 'production') {
+        console.error('❌ [DEBUG-ADMIN] Attempt to create admin in production - blocked');
         return res.status(403).json({ error: 'Not allowed in production' });
     }
 
+    console.log('🔍 [DEBUG-ADMIN] Admin creation endpoint called');
+
     try {
         const {
-            staff_id,
-            username,
-            password,
-            first_name = null,
-            middle_initial = null,
-            last_name = null,
-            phone_number = null,
-            address = null,
-            date_of_birth = null,
-            sex = null,
-            ssn = '000-00-0000',
-            staff_type = 'Staff',
-            salary = null,
-            schedule = null,
+            username = 'admin',
+            password = 'admin123', // Default password for dev
+            first_name = 'Admin',
+            last_name = 'User',
+            staff_type = 'Admin'
         } = req.body;
 
-        if (!username || !password) {
-            return res.status(400).json({ error: 'username and password are required' });
-        }
+        console.log(`🔍 [DEBUG-ADMIN] Checking if username "${username}" exists...`);
 
-        // Ensure username doesn't already exist
+        // Check if username exists
         db.query('SELECT * FROM Staff WHERE username = ?', [username], async (err, results) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (results.length > 0) return res.status(409).json({ error: 'Username already exists' });
+            if (err) {
+                console.error('❌ [DEBUG-ADMIN] Database error checking username:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            
+            // If user already exists, return existing credentials
+            if (results.length > 0) {
+                const existing = results[0];
+                console.log(`✅ [DEBUG-ADMIN] Admin '${username}' already exists - skipping creation`);
+                
+                return res.status(200).json({ 
+                    message: 'Admin account already exists',
+                    credentials: {
+                        staff_id: existing.staff_id,
+                        username: existing.username,
+                        password: password, // Return the password you tried (assuming it's correct)
+                        staff_type: existing.staff_type
+                    },
+                    note: 'If password is incorrect, use the debug-reset-password endpoint'
+                });
+            }
 
+            // User doesn't exist - create new admin
+            console.log(`🔍 [DEBUG-ADMIN] Username "${username}" does not exist - creating new admin...`);
             const hashedPassword = await bcrypt.hash(password, 10);
-            const id = staff_id || ('D' + Date.now().toString().slice(-6));
+            const staff_id = 'ADM' + Date.now().toString().slice(-6);
+            console.log(`🔍 [DEBUG-ADMIN] Generated staff_id: ${staff_id}`);
 
             db.query(
-                "INSERT INTO Staff (staff_id, username, password, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [id, username, hashedPassword, first_name, middle_initial, last_name, phone_number, address, date_of_birth, sex, ssn, staff_type, salary, schedule],
+                `INSERT INTO Staff (
+                    staff_id, username, password, first_name, last_name, 
+                    ssn, staff_type, salary, middle_initial, phone_number, 
+                    address, date_of_birth, sex, schedule
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    staff_id, username, hashedPassword, first_name, last_name,
+                    '000-00-0000', staff_type, 75000, null, null,
+                    null, null, null, null
+                ],
                 (err, result) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    return res.status(201).json({ message: 'Debug staff created', staff_id: id, username, staff_type });
+                    if (err) {
+                        console.error('❌ [DEBUG-ADMIN] Database error creating admin:', err);
+                        return res.status(500).json({ error: err.message });
+                    }
+                    
+                    console.log('\n');
+                    console.log('╔════════════════════════════════════════════╗');
+                    console.log('║  🎉 NEW ADMIN ACCOUNT CREATED SUCCESSFULLY  ║');
+                    console.log('╚════════════════════════════════════════════╝');
+                    console.log(`  Staff ID:  ${staff_id}`);
+                    console.log(`  Username:  ${username}`);
+                    console.log(`  Password:  ${password}`);
+                    console.log(`  Role:      ${staff_type}`);
+                    console.log('╔════════════════════════════════════════════╗\n');
+                    
+                    return res.status(201).json({
+                        message: 'Admin account created successfully!',
+                        credentials: {
+                            staff_id,
+                            username,
+                            password,
+                            staff_type
+                        },
+                        loginUrl: 'POST http://localhost:5000/auth/login'
+                    });
                 }
             );
         });
     } catch (error) {
+        console.error('❌ [DEBUG-ADMIN] Unexpected error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Bonus: Reset password for dev accounts
+app.post('/auth/debug-reset-password', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Not allowed in production' });
+    }
+
+    const { username = 'admin', newPassword = 'admin123' } = req.body;
+
+    try {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        db.query(
+            'UPDATE Staff SET password = ? WHERE username = ?',
+            [hashedPassword, username],
+            (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+                
+                console.log(`🔑 Password reset for '${username}' to '${newPassword}'`);
+                
+                res.json({
+                    message: 'Password reset successfully',
+                    credentials: { username, password: newPassword }
+                });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Quick endpoint to delete test accounts
+app.delete('/auth/debug-delete-staff/:username', (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Not allowed in production' });
+    }
+
+    db.query('DELETE FROM Staff WHERE username = ?', [req.params.username], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json({ message: `User '${req.params.username}' deleted successfully` });
+    });
 });
 
 // Login staff member
@@ -1173,7 +1277,80 @@ app.get("/", (req, res) => {
     });
 });
 
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
-    console.log("API available at http://localhost:5000");
+// ==================== AUTO-CREATE ADMIN ON STARTUP ====================
+
+function createDefaultAdmin() {
+    console.log('🔍 [DEBUG-ADMIN] Attempting to create default admin account...');
+    
+    const username = 'admin';
+    const password = 'admin123';
+    const first_name = 'Admin';
+    const last_name = 'User';
+    const staff_type = 'Admin';
+
+    // Check if username exists
+    db.query('SELECT * FROM Staff WHERE username = ?', [username], async (err, results) => {
+        if (err) {
+            console.error('❌ [DEBUG-ADMIN] Database error checking username:', err);
+            return;
+        }
+        
+        // If user already exists, just log it
+        if (results.length > 0) {
+            const existing = results[0];
+            console.log(`✅ [DEBUG-ADMIN] Admin '${username}' already exists`);
+            return;
+        }
+
+        // User doesn't exist - create new admin
+        console.log(`🔍 [DEBUG-ADMIN] Username "${username}" does not exist - creating new admin...`);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const staff_id = 'ADM' + Date.now().toString().slice(-6);
+        console.log(`🔍 [DEBUG-ADMIN] Generated staff_id: ${staff_id}`);
+
+        db.query(
+            `INSERT INTO Staff (
+                staff_id, username, password, first_name, last_name, 
+                ssn, staff_type, salary, middle_initial, phone_number, 
+                address, date_of_birth, sex, schedule
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                staff_id, username, hashedPassword, first_name, last_name,
+                '000-00-0001', staff_type, 75000, null, null,
+                null, null, null, null
+            ],
+            (err, result) => {
+                if (err) {
+                    console.error('❌ [DEBUG-ADMIN] Database error creating admin:', err);
+                    return;
+                }
+                
+                console.log('\n');
+                console.log('╔════════════════════════════════════════════╗');
+                console.log('║  🎉 NEW ADMIN ACCOUNT CREATED SUCCESSFULLY  ║');
+                console.log('╚════════════════════════════════════════════╝');
+                console.log(`  Staff ID:  ${staff_id}`);
+                console.log(`  Username:  ${username}`);
+                console.log(`  Password:  ${password}`);
+                console.log(`  Role:      ${staff_type}`);
+                console.log('╔════════════════════════════════════════════╝\n');
+            }
+        );
+    });
+}
+
+const PORT = 5000;
+app.listen(PORT, () => {
+    console.log("\n");
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("✅ [DEBUG] Server Successfully Started!");
+    console.log("═══════════════════════════════════════════════════════");
+    console.log(`🌐 Server running on port ${PORT}`);
+    console.log(`📍 API available at http://localhost:${PORT}`);
+    console.log(`⏰ Started at: ${new Date().toISOString()}`);
+    console.log("═══════════════════════════════════════════════════════\n");
+    
+    // Create default admin account on startup
+    console.log('🚀 [DEBUG] Initializing default admin account...\n');
+    createDefaultAdmin();
 });
