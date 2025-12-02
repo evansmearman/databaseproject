@@ -21,7 +21,7 @@ console.log("🚀 [DEBUG] Setting up MySQL connection...");
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "Laundry78@78",
+    password: "197355",
     database: "aquarium_db"
 });
 
@@ -1074,7 +1074,7 @@ app.post("/animals", (req, res) => {
   
   
   db.query(
-    "INSERT INTO Animal (animal_id, name, species, clean_date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO Animal (animal_id, name, species, date_of_birth, sex, food_type, feeding_type, exhibit_id, tank_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [animal_id, name, species, clean_date_of_birth, clean_sex, food_type, feeding_type, exhibit_id, clean_tank_id],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
