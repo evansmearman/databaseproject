@@ -1495,7 +1495,7 @@ function StaffDashboard() {
         <StaffInputCard
           title="Add Exhibit"
           onSubmit={(data) => handleFormSubmission("exhibits", data)} // <--- UPDATED
-          fields={["id", "name", "location", "lead_aquarist_id"]}
+          fields={["exhibit_id", "exhibit_name", "exhibit_location", "lead_aquarist_id"]}
         />
 
         {/* TANK FORM */}
@@ -1509,15 +1509,15 @@ function StaffDashboard() {
         {/* FEEDING RECORD */}
         <StaffInputCard
           title="Add Feeding Record"
-          onSubmit={(data) => handleFormSubmission("feedingRecords", data)} // <--- UPDATED
+          onSubmit={(data) => handleFormSubmission("feeding-records", data)} // <--- UPDATED
           fields={["feeding_id", "animal_id", "aquarist_id", "food_amount", "feeding_time (YYYY-MM-DD HH:MM:SS)"]}
         />
 
         {/* HEALTH RECORD */}
         <StaffInputCard
           title="Add Health Record"
-          onSubmit={(data) => handleFormSubmission("healthRecords", data)} // <--- UPDATED
-          fields={["record_id", "animal_id", "vet_id", "date (YYYY-MM-DD)", "conditions", "notes"]}
+          onSubmit={(data) => handleFormSubmission("health-records", data)} // <--- UPDATED
+          fields={["record_id", "animal_id", "vet_id", "date", "conditions", "notes"]}
         />
 
       </div>
