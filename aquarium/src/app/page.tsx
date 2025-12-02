@@ -26,7 +26,7 @@ interface ExhibitDetail {
 // Define the expected structure for Animal data from the database
 // ==========================================================
 interface AnimalDetail {
-  animal_id: number;
+  animal_id: string;
   common_name: string;
   species: string;
   birth_date: string; // e.g., "2018-03-15T00:00:00.000Z"
@@ -795,7 +795,7 @@ export function AnimalsPage() {
   
   // Map fetched data to the display keys requested in the output format
   const mappedAnimals = animals.map(animal => ({
-    id: `ANM${String(animal.animal_id).padStart(3, '0')}`, // Format ID like 'anm001'
+    id: `A${String(animal.animal_id).padStart(3, '0')}`, // Format ID like 'anm001'
     name: animal.common_name, 
     species: animal.species, 
     group: animal.animal_group || 'Unspecified', // Use fallback if API doesn't return
@@ -1488,21 +1488,21 @@ function StaffDashboard() {
         <StaffInputCard
           title="Add Animal"
           onSubmit={(data) => handleFormSubmission("animals", data)} // <--- UPDATED
-          fields={["animal_id (AXXX)", "name", "species", "date_of_birth (YYYY-MM-DD)", "sex (M/F)", "food_type", "feeding_type", "exhibit_id (EXXX)", "tank_id (TXXX)"]}
+          fields={["animal_id", "name", "species", "date_of_birth (YYYY-MM-DD)", "sex (M/F)", "food_type", "feeding_type", "exhibit_id", "tank_id"]}
         />
 
         {/* EXHIBIT FORM */}
         <StaffInputCard
           title="Add Exhibit"
           onSubmit={(data) => handleFormSubmission("exhibits", data)} // <--- UPDATED
-          fields={["id (EXXX)", "name", "location", "lead_aquarist_id"]}
+          fields={["id", "name", "location", "lead_aquarist_id"]}
         />
 
         {/* TANK FORM */}
         <StaffInputCard
           title="Add Tank"
           onSubmit={(data) => handleFormSubmission("tanks", data)} // <--- UPDATED
-          fields={["tank_id (TXXX)", "tank_size", "tank_type", "water_type", "exhibit_id (EXXX)"]}// tank id	tank size	tank type	water type	exhibit i
+          fields={["tank_id", "tank_size", "tank_type", "water_type", "exhibit_id (EXXX)"]}// tank id	tank size	tank type	water type	exhibit i
         />
 
 
@@ -1510,14 +1510,14 @@ function StaffDashboard() {
         <StaffInputCard
           title="Add Feeding Record"
           onSubmit={(data) => handleFormSubmission("feedingRecords", data)} // <--- UPDATED
-          fields={["feeding_id", "animal_id (AXXX)", "aquarist_id (SXXX)", "food_amount", "feeding_time (YYYY-MM-DD HH:MM:SS)"]}
+          fields={["feeding_id", "animal_id", "aquarist_id", "food_amount", "feeding_time (YYYY-MM-DD HH:MM:SS)"]}
         />
 
         {/* HEALTH RECORD */}
         <StaffInputCard
           title="Add Health Record"
           onSubmit={(data) => handleFormSubmission("healthRecords", data)} // <--- UPDATED
-          fields={["record_id", "animal_id (AXXX)", "vet_id (SXXX)", "date (YYYY-MM-DD)", "conditions", "notes"]}
+          fields={["record_id", "animal_id", "vet_id", "date (YYYY-MM-DD)", "conditions", "notes"]}
         />
 
       </div>
